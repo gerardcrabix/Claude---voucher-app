@@ -8,6 +8,7 @@ import EditerBon from './pages/EditerBon.jsx';
 import Enseignes from './pages/Enseignes.jsx';
 import Expires from './pages/Expires.jsx';
 import Calendrier from './pages/Calendrier.jsx';
+import Diagnostic from './pages/Diagnostic.jsx';
 
 function Entete() {
   const { identite, changerDePersonne } = useIdentity();
@@ -56,6 +57,7 @@ function AppConnectee() {
         <Route path="/enseignes" element={<Enseignes />} />
         <Route path="/expires" element={<Expires />} />
         <Route path="/calendrier" element={<Calendrier />} />
+        <Route path="/diagnostic" element={<Diagnostic />} />
       </Routes>
       <NavBasse />
     </div>

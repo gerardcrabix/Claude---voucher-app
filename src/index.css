@@ -589,3 +589,20 @@ a.ligne-enseigne {
   border-radius: 50%;
   background: currentColor;
 }
+
+/* ---- Diagnostic (écran temporaire) ---- */
+
+.bloc-diagnostic {
+  background: #1c1c1e;
+  color: #d6d6d6;
+  border-radius: var(--rayon);
+  padding: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-x: auto;
+  max-height: 50vh;
+  overflow-y: auto;
+}

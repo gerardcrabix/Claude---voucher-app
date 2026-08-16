@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   creerBon,
   enregistrerPdf,
@@ -169,13 +169,18 @@ export default function NouveauBon() {
             {etatExtraction === null && 'Si vous en avez un, ça préremplit le code, le PIN et la date.'}
           </span>
           {etatExtraction === 'echec-technique' && pdf && (
-            <button
-              type="button"
-              className="bouton-discret"
-              onClick={() => surChoixPdf({ target: { files: [pdf] } })}
-            >
-              Réessayer la lecture du PDF
-            </button>
+            <div className="actions">
+              <button
+                type="button"
+                className="bouton-discret"
+                onClick={() => surChoixPdf({ target: { files: [pdf] } })}
+              >
+                Réessayer la lecture du PDF
+              </button>
+              <Link to="/diagnostic" className="bouton-discret">
+                Voir le journal détaillé
+              </Link>
+            </div>
           )}
         </div>
 

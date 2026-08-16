@@ -10,6 +10,7 @@
 // navigateur. Voir ce fichier pour le pourquoi de la reconstruction par
 // coordonnées plutôt que l'ordre brut du flux PDF.
 import { chercherCode, chercherDateExpiration, chercherPin, construireLignes } from './analyserLignesBon.js';
+import { ajouterEntree } from '../diagnostic/journal.js';
 
 // pdfjs-dist pèse plus d'1 Mo (worker compris) : chargé à la demande
 // seulement quand un PDF est effectivement choisi, pas au démarrage de
@@ -69,13 +70,14 @@ export async function extraireInfosPdf(file) {
       erreur: null,
     };
   } catch (e) {
-    console.error('extraireInfosPdf: échec technique de lecture du PDF', e);
+    const message = e?.message || String(e);
+    ajouterEntree('extraction-pdf', `Échec lecture PDF "${file?.name ?? '?'}" : ${message}`, e?.stack);
     return {
       code: null,
       pin: null,
       dateExpiration: null,
       texteBrutDisponible: false,
-      erreur: e?.message || String(e),
+      erreur: message,
     };
   }
 }
