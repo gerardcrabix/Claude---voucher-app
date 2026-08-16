@@ -55,17 +55,27 @@ function dateDansLigne(ligne) {
 }
 
 // Cherche une valeur associée à un libellé : sur la même ligne d'abord (ex.
-// "PIN : 3682"), sinon sur la ligne suivante (ex. "Date de fin de
-// validité :" puis "27/04/2027" juste en dessous) — les deux dispositions
-// existent réellement selon les gabarits de bons.
+// "PIN : 3682"), sinon dans les quelques lignes qui suivent (ex. "Date de
+// fin de validité :" puis "27/04/2027" juste en dessous). La fenêtre de
+// recherche va au-delà de la toute prochaine ligne car sur un gabarit à
+// deux colonnes (mentions légales à gauche, libellés/valeurs à droite), une
+// ligne de texte sans rapport peut se glisser entre le libellé et sa valeur
+// une fois toutes les lignes triées par position verticale — un vrai cas
+// rencontré sur un bon Carrefour réel.
+const FENETRE_RECHERCHE_VALEUR = 4;
+
 function valeurApresLibelle(lignes, motifLibelle, extraireValeur) {
   for (let i = 0; i < lignes.length; i++) {
     if (!motifLibelle.test(lignes[i])) continue;
     const surLaMemeLigne = extraireValeur(lignes[i]);
     if (surLaMemeLigne) return surLaMemeLigne;
-    if (i + 1 < lignes.length) {
-      const surLaLigneSuivante = extraireValeur(lignes[i + 1]);
-      if (surLaLigneSuivante) return surLaLigneSuivante;
+    for (let j = i + 1; j < Math.min(i + 1 + FENETRE_RECHERCHE_VALEUR, lignes.length); j++) {
+      // Une vraie ligne de valeur est courte (juste le numéro/la date/le
+      // PIN) — ça évite de capturer un mot qui matche par coïncidence au
+      // milieu d'un paragraphe de mentions légales sans rapport.
+      if (lignes[j].length > 60) continue;
+      const valeur = extraireValeur(lignes[j]);
+      if (valeur) return valeur;
     }
   }
   return null;

@@ -28,26 +28,6 @@ export default defineConfig({
       // elles à ce stade (MVP local, sans backend).
       workbox: {
         globPatterns: ['**/*.{js,css,html,png,svg,ico}'],
-        // La lib d'extraction PDF (~1,7 Mo au total) n'est pas embarquée
-        // dans le cache hors-ligne dès l'installation (pas nécessaire tant
-        // qu'on n'a pas choisi de PDF). En contrepartie, une fois qu'elle a
-        // été récupérée une première fois avec succès (idéalement en
-        // Wi-Fi), la règle runtimeCaching ci-dessous la garde en cache
-        // définitivement : plus jamais besoin de la retélécharger en 4G/5G
-        // avec un signal faible, ce qui causait des échecs "Importing a
-        // module script failed" sur le terrain.
-        globIgnores: ['**/pdf-*.js', '**/pdf.worker.min-*'],
-        runtimeCaching: [
-          {
-            urlPattern: /pdf(\.worker)?(-|\.min-)[^/]+\.m?js$/,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'lib-extraction-pdf',
-              expiration: { maxEntries: 8, maxAgeSeconds: 60 * 60 * 24 * 180 },
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
-        ],
         navigateFallback: 'index.html',
       },
       manifest: {

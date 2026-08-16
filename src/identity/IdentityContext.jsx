@@ -1,5 +1,5 @@
 // MVP sans compte réel : chaque appareil "se souvient" de qui l'utilise
-// (Moi / Ma femme) pour tracer l'auteur des bons et des mouvements, comme le
+// (CM / AJ) pour tracer l'auteur des bons et des mouvements, comme le
 // ferait l'authentification Supabase dans la vraie version. Ce choix est
 // local à l'appareil (localStorage), donc les deux iPhones ne partagent pas
 // leurs données à ce stade — c'est prévu et documenté (voir README).
@@ -8,8 +8,8 @@ import { createContext, useContext, useEffect, useState } from 'react';
 const CLE_STOCKAGE = 'bons-app:identite';
 
 export const IDENTITES = [
-  { id: 'moi', label: 'Moi' },
-  { id: 'elle', label: 'Ma femme' },
+  { id: 'moi', label: 'CM' },
+  { id: 'elle', label: 'AJ' },
 ];
 
 const IdentityContext = createContext(null);
