@@ -388,6 +388,20 @@ p {
   width: fit-content;
 }
 
+.image-code-barres {
+  align-self: center;
+  max-width: 240px;
+  width: 100%;
+  /* Marge blanche autour de l'image (zone de silence) : les lecteurs de
+     code-barres/QR en ont besoin pour scanner correctement, et le bitmap
+     généré n'en inclut pas lui-même. */
+  padding: 12px;
+  background: #ffffff;
+  border-radius: 8px;
+  border: 1px solid var(--couleur-bordure);
+  image-rendering: pixelated;
+}
+
 .carte-bon .pin {
   color: var(--couleur-texte-discret);
 }

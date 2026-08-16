@@ -3,6 +3,9 @@ import { useNavigate, useParams, Link } from 'react-router-dom';
 import { listerEnseignes, modifierBon, obtenirBon } from '../db/repository.js';
 import { eurosVersCentimes, centimesVersAffichage } from '../utils/money.js';
 import { useIdentity } from '../identity/IdentityContext.jsx';
+import { genererQrCode } from '../export/qrcode.js';
+import { bitmapMonochromeVersDataUrl } from '../utils/image.js';
+import { ajouterEntree } from '../diagnostic/journal.js';
 import ChampsBon from '../components/ChampsBon.jsx';
 import SelecteurVisibilite from '../components/SelecteurVisibilite.jsx';
 
@@ -24,6 +27,12 @@ export default function EditerBon() {
   const [code, setCode] = useState('');
   const [pin, setPin] = useState('');
   const [visibilite, setVisibilite] = useState('partage');
+  // Pour savoir, à l'enregistrement, si le code-barres/QR existant (celui
+  // chargé avec le bon — peut être un vrai code-barres extrait d'un PDF)
+  // doit être conservé tel quel ou régénéré : seulement si le code du bon
+  // n'a pas changé, faute de quoi l'image ne correspondrait plus.
+  const [codeOriginal, setCodeOriginal] = useState('');
+  const [codeBarresUrlOriginal, setCodeBarresUrlOriginal] = useState(null);
   const [erreur, setErreur] = useState(null);
   const [enCours, setEnCours] = useState(false);
 
@@ -38,6 +47,8 @@ export default function EditerBon() {
       setCode(bon.code ?? '');
       setPin(bon.pin ?? '');
       setVisibilite(bon.visibilite || 'partage');
+      setCodeOriginal(bon.code ?? '');
+      setCodeBarresUrlOriginal(bon.codeBarresUrl ?? null);
       setCharge(true);
     });
   }, [id, identite]);
@@ -60,6 +71,24 @@ export default function EditerBon() {
       return;
     }
 
+    // Le code-barres/QR ne vaut que pour le code exact qu'il encode : s'il
+    // n'a pas changé, on garde l'image existante (potentiellement un vrai
+    // code-barres extrait d'un PDF, pas juste un QR générique) ; sinon un
+    // QR est régénéré depuis le nouveau code — pas de PDF disponible ici
+    // pour retenter une vraie extraction.
+    let codeBarresUrl = codeBarresUrlOriginal;
+    if (code.trim() !== codeOriginal.trim()) {
+      codeBarresUrl = null;
+      try {
+        if (code.trim()) {
+          const qr = genererQrCode(code.trim());
+          if (qr) codeBarresUrl = bitmapMonochromeVersDataUrl(qr);
+        }
+      } catch (err) {
+        ajouterEntree('editer-bon', `Échec génération QR : ${err?.message}`, err?.stack);
+      }
+    }
+
     setEnCours(true);
     try {
       await modifierBon({
@@ -71,6 +100,7 @@ export default function EditerBon() {
         code,
         pin,
         visibilite,
+        codeBarresUrl,
         auteur: identite,
       });
       navigate(`/bon/${id}`);

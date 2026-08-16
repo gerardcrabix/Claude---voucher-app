@@ -32,3 +32,27 @@ export function redimensionnerImageEnDataUrl(file, tailleMax = 128) {
     lecteur.readAsDataURL(file);
   });
 }
+
+// Convertit un bitmap monochrome { width, height, pixels } (1 octet par
+// pixel, 0 = noir, 1 = blanc — voir extraireImageCodeBarres et le générateur
+// de QR code) en "data:" URL PNG, via un canvas hors-écran. Volontairement
+// séparé du décodage lui-même (dans src/pdf/lecteurPdfMinimal.js et
+// src/export/qrcode.js) pour que ce décodage reste testable sans navigateur
+// (Node, voir les scripts de vérification) — seule cette dernière étape a
+// besoin du DOM.
+export function bitmapMonochromeVersDataUrl({ width, height, pixels }) {
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  const imageData = ctx.createImageData(width, height);
+  for (let i = 0; i < pixels.length; i++) {
+    const v = pixels[i] === 1 ? 255 : 0;
+    imageData.data[i * 4] = v;
+    imageData.data[i * 4 + 1] = v;
+    imageData.data[i * 4 + 2] = v;
+    imageData.data[i * 4 + 3] = 255;
+  }
+  ctx.putImageData(imageData, 0, 0);
+  return canvas.toDataURL('image/png');
+}

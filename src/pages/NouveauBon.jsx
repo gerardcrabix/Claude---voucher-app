@@ -11,6 +11,8 @@ import { eurosVersCentimes } from '../utils/money.js';
 import { dateAchatDepuisExpiration, dateExpirationParDefaut, dateInputAujourdhui } from '../utils/dates.js';
 import { useIdentity } from '../identity/IdentityContext.jsx';
 import { extraireInfosPdf } from '../pdf/extraireInfosPdf.js';
+import { genererQrCode } from '../export/qrcode.js';
+import { bitmapMonochromeVersDataUrl } from '../utils/image.js';
 import { ajouterEntree } from '../diagnostic/journal.js';
 import AlerteAntiOubli from '../components/AlerteAntiOubli.jsx';
 import ChampsBon from '../components/ChampsBon.jsx';
@@ -46,6 +48,12 @@ export default function NouveauBon() {
   const [code, setCode] = useState('');
   const [pin, setPin] = useState('');
   const [visibilite, setVisibilite] = useState('partage');
+  // Bitmap brut { width, height, pixels } du vrai code-barres trouvé dans le
+  // PDF (voir extraireImageCodeBarres) — converti en image seulement à la
+  // validation du formulaire (pas besoin avant). `null` si le PDF n'en a
+  // pas (cas de Leroy Merlin/Fnac/IKEA testés) : un QR généré depuis le
+  // code prend le relais à la validation.
+  const [codeBarresBitmap, setCodeBarresBitmap] = useState(null);
   const [pdf, setPdf] = useState(null);
   // null | 'en-cours' | 'trouve' | 'rien-trouve' | 'echec-technique'
   const [etatExtraction, setEtatExtraction] = useState(null);
@@ -114,6 +122,8 @@ export default function NouveauBon() {
       return;
     }
 
+    setCodeBarresBitmap(infos.codeBarresBitmap ?? null);
+
     let trouveQuelqueChose = false;
     if (infos.enseigneNom && enseigneNom.trim() === '') {
       setEnseigneNom(infos.enseigneNom);
@@ -146,6 +156,24 @@ export default function NouveauBon() {
     setEtatExtraction(trouveQuelqueChose ? 'trouve' : 'rien-trouve');
   }
 
+  // Image à présenter/scanner en magasin : le vrai code-barres trouvé dans
+  // le PDF s'il y en avait un (Carrefour), sinon un QR généré depuis le
+  // code du bon (Leroy Merlin/Fnac/IKEA testés, ou toute saisie manuelle).
+  // Ne doit jamais empêcher la création du bon si ça échoue — juste rester
+  // sans image dans ce cas, comme le reste des champs auto-remplis.
+  function calculerImageCodeBarres() {
+    try {
+      if (codeBarresBitmap) return bitmapMonochromeVersDataUrl(codeBarresBitmap);
+      if (code.trim()) {
+        const qr = genererQrCode(code.trim());
+        if (qr) return bitmapMonochromeVersDataUrl(qr);
+      }
+    } catch (e) {
+      ajouterEntree('nouveau-bon', `Échec génération image code-barres/QR : ${e?.message}`, e?.stack);
+    }
+    return null;
+  }
+
   async function valider(e) {
     e.preventDefault();
     setErreur(null);
@@ -175,6 +203,7 @@ export default function NouveauBon() {
         code,
         pin,
         visibilite,
+        codeBarresUrl: calculerImageCodeBarres(),
         auteur: identite,
       }));
     } catch {

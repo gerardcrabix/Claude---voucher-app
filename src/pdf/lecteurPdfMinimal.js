@@ -478,3 +478,159 @@ export function extraireItemsPdf(buffer) {
 
   return items;
 }
+
+// ---- Extraction d'une image "code-barres" ---------------------------------
+//
+// Découvert sur le vrai bon Carrefour : le code-barres imprimé sur le bon
+// est une véritable image /Subtype /Image dans le PDF (356×30, niveaux de
+// gris 1 bit, FlateDecode avec un prédicteur PNG), référencée directement
+// depuis les Resources de la page — pas juste du texte ou des lignes
+// dessinées. Les bons Leroy Merlin/Fnac/IKEA testés n'ont eux aucune image
+// de ce type (juste une photo décorative) : cette fonction renvoie `null`
+// dans ce cas, et l'appelant se rabat sur un QR code généré depuis le code
+// du bon (voir qrcode.js).
+
+// Une image "en forme de code-barres" est beaucoup plus large que haute.
+// Seuil volontairement large pour rester tolérant à d'autres gabarits.
+function ressembleAUnCodeBarres(w, h) {
+  return w > 0 && h > 0 && w / h >= 4 && h <= 120;
+}
+
+function nombreDict(dict, cle, defaut) {
+  const m = dict.match(new RegExp(`/${cle}\\s+(\\d+)`));
+  return m ? Number(m[1]) : defaut;
+}
+
+// Inverse un prédicteur PNG (DecodeParms /Predictor 10-15) : chaque ligne
+// codée est précédée d'un octet de type de filtre (0 None, 1 Sub, 2 Up,
+// 3 Average, 4 Paeth) à annuler pour retrouver les octets bruts de l'image.
+function inverserPredicteurPng(octets, colonnes, couleurs, bitsParComposante) {
+  const bpp = Math.max(1, Math.ceil((couleurs * bitsParComposante) / 8));
+  const octetsParLigne = Math.ceil((colonnes * couleurs * bitsParComposante) / 8);
+  const nbLignes = Math.floor(octets.length / (octetsParLigne + 1));
+  const resultat = new Uint8Array(nbLignes * octetsParLigne);
+  let precedente = new Uint8Array(octetsParLigne);
+
+  const paeth = (a, b, c) => {
+    const p = a + b - c;
+    const pa = Math.abs(p - a);
+    const pb = Math.abs(p - b);
+    const pc = Math.abs(p - c);
+    if (pa <= pb && pa <= pc) return a;
+    if (pb <= pc) return b;
+    return c;
+  };
+
+  for (let l = 0; l < nbLignes; l++) {
+    const debut = l * (octetsParLigne + 1);
+    const typeFiltre = octets[debut];
+    const ligneBrute = octets.subarray(debut + 1, debut + 1 + octetsParLigne);
+    const ligneSortie = resultat.subarray(l * octetsParLigne, (l + 1) * octetsParLigne);
+
+    for (let i = 0; i < octetsParLigne; i++) {
+      const a = i >= bpp ? ligneSortie[i - bpp] : 0;
+      const b = precedente[i];
+      const c = i >= bpp ? precedente[i - bpp] : 0;
+      let valeur = ligneBrute[i];
+      if (typeFiltre === 1) valeur = (valeur + a) & 0xff;
+      else if (typeFiltre === 2) valeur = (valeur + b) & 0xff;
+      else if (typeFiltre === 3) valeur = (valeur + Math.floor((a + b) / 2)) & 0xff;
+      else if (typeFiltre === 4) valeur = (valeur + paeth(a, b, c)) & 0xff;
+      ligneSortie[i] = valeur;
+    }
+    precedente = ligneSortie;
+  }
+  return resultat;
+}
+
+// Décode une image /Subtype /Image en bitmap { width, height, pixels }
+// (pixels : 1 octet par pixel, 0 = noir, 1 = blanc). Ne gère que le cas
+// rencontré en pratique pour un code-barres (FlateDecode, 1 bit par pixel,
+// niveaux de gris) — largement suffisant pour ce besoin précis ; les autres
+// cas renvoient `null` et laissent la place au repli (QR généré).
+function decoderImageMonochrome(dict, brut) {
+  const w = nombreDict(dict, 'Width', 0);
+  const h = nombreDict(dict, 'Height', 0);
+  const bpc = nombreDict(dict, 'BitsPerComponent', 8);
+  const predicteur = nombreDict(dict, 'Predictor', 1);
+  const colonnes = nombreDict(dict, 'Columns', w);
+  const couleurs = nombreDict(dict, 'Colors', 1);
+  const decodeInverse = /\/Decode\s*\[\s*1\s+0\s*\]/.test(dict);
+
+  if (!w || !h || bpc !== 1 || couleurs !== 1) return null;
+  if (!/\/Filter\s*\/FlateDecode/.test(dict) && !/\/Filter\s*\[\s*\/FlateDecode/.test(dict)) return null;
+
+  let donnees;
+  try {
+    donnees = inflateZlib(chaineVersOctets(brut));
+  } catch {
+    return null;
+  }
+  if (predicteur >= 10) {
+    donnees = inverserPredicteurPng(donnees, colonnes, couleurs, bpc);
+  }
+
+  const octetsParLigne = Math.ceil(w / 8);
+  if (donnees.length < octetsParLigne * h) return null;
+
+  const pixels = new Uint8Array(w * h);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const octet = donnees[y * octetsParLigne + (x >> 3)];
+      const bit = (octet >> (7 - (x & 7))) & 1;
+      pixels[y * w + x] = decodeInverse ? 1 - bit : bit;
+    }
+  }
+  return { width: w, height: h, pixels };
+}
+
+// Renvoie { width, height, pixels } de la première image "en forme de
+// code-barres" trouvée dans les Resources de la page, en descendant au
+// besoin dans les Form XObject (le gabarit statique d'un bon vit souvent
+// là — voir le commentaire en tête de fichier) ; sinon `null`.
+export function extraireImageCodeBarres(buffer) {
+  const octets = new Uint8Array(buffer);
+  const texteComplet = octetsVersLatin1(octets);
+  const objets = trouverObjets(texteComplet);
+  const page = trouverPage(objets);
+  if (!page) return null;
+
+  function dictResourcesDe(dictObjet) {
+    const numRes = resoudreRefIndirecte(dictObjet, 'Resources');
+    if (numRes == null) return dictObjet;
+    return objets.get(numRes) || '';
+  }
+
+  function chercherDans(dictResources, profondeur) {
+    if (profondeur > 6) return null;
+    const mBloc = dictResources.match(/\/XObject\s*<<([^>]*(?:>>[^>]*)*?)>>/);
+    if (!mBloc) return null;
+    const re = /\/(\S+)\s+(\d+)\s+\d+\s+R/g;
+    const candidats = [];
+    let m;
+    while ((m = re.exec(mBloc[1]))) candidats.push(Number(m[2]));
+
+    for (const num of candidats) {
+      const contenuObjet = objets.get(num);
+      if (!contenuObjet || !/\/Subtype\s*\/Image\b/.test(contenuObjet)) continue;
+      const w = nombreDict(contenuObjet, 'Width', 0);
+      const h = nombreDict(contenuObjet, 'Height', 0);
+      if (!ressembleAUnCodeBarres(w, h)) continue;
+      const flux = extraireFluxEtDict(contenuObjet);
+      if (!flux) continue;
+      const image = decoderImageMonochrome(flux.dict, flux.brut);
+      if (image) return image;
+    }
+
+    for (const num of candidats) {
+      const contenuObjet = objets.get(num);
+      if (!contenuObjet || !/\/Subtype\s*\/Form\b/.test(contenuObjet)) continue;
+      const dictRessourcesCible = dictResourcesDe(contenuObjet);
+      const trouve = chercherDans(dictRessourcesCible, profondeur + 1);
+      if (trouve) return trouve;
+    }
+    return null;
+  }
+
+  return chercherDans(dictResourcesDe(page.contenu), 0);
+}

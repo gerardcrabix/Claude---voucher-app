@@ -20,11 +20,10 @@ import {
   chercherPin,
   construireLignes,
 } from './analyserLignesBon.js';
-import { extraireItemsPdf } from './lecteurPdfMinimal.js';
+import { extraireImageCodeBarres, extraireItemsPdf } from './lecteurPdfMinimal.js';
 import { ajouterEntree } from '../diagnostic/journal.js';
 
-async function extraireLignes(file) {
-  const buffer = await file.arrayBuffer();
+function extraireLignes(buffer) {
   const items = extraireItemsPdf(buffer);
   return construireLignes(items);
 }
@@ -43,19 +42,23 @@ function journaliserResultat(nomFichier, lignes, resultat) {
 
 const RESULTAT_VIDE = {
   enseigneNom: null, code: null, pin: null, dateExpiration: null, montant: null,
-  texteBrutDisponible: false, erreur: null,
+  codeBarresBitmap: null, texteBrutDisponible: false, erreur: null,
 };
 
 // Renvoie { enseigneNom, code, pin, dateExpiration, montant,
-// texteBrutDisponible, erreur }. `erreur` n'est renseigné que si une vraie
-// panne technique a empêché la lecture (PDF corrompu, structure
-// inattendue…) — à distinguer de "le PDF a bien été lu mais ne contient
-// rien d'exploitable". `nomsEnseignesConnues` (optionnel) améliore la
-// détection de l'enseigne en la faisant correspondre en priorité à une
-// enseigne déjà utilisée dans l'app (voir chercherEnseigne).
+// codeBarresBitmap, texteBrutDisponible, erreur }. `erreur` n'est renseigné
+// que si une vraie panne technique a empêché la lecture (PDF corrompu,
+// structure inattendue…) — à distinguer de "le PDF a bien été lu mais ne
+// contient rien d'exploitable". `nomsEnseignesConnues` (optionnel) améliore
+// la détection de l'enseigne (voir chercherEnseigne). `codeBarresBitmap`
+// est un bitmap brut { width, height, pixels } (voir
+// extraireImageCodeBarres) — pas encore une image affichable, à convertir
+// côté appelant avec bitmapMonochromeVersDataUrl (utils/image.js), qui a
+// besoin du DOM et n'a donc pas sa place dans ce module testable en Node.
 export async function extraireInfosPdf(file, nomsEnseignesConnues = []) {
   try {
-    const lignes = await extraireLignes(file);
+    const buffer = await file.arrayBuffer();
+    const lignes = extraireLignes(buffer);
     if (lignes.length === 0) {
       const resultat = { ...RESULTAT_VIDE };
       journaliserResultat(file?.name ?? '?', lignes, resultat);
@@ -67,6 +70,7 @@ export async function extraireInfosPdf(file, nomsEnseignesConnues = []) {
       pin: chercherPin(lignes),
       dateExpiration: chercherDateExpiration(lignes),
       montant: chercherMontant(lignes),
+      codeBarresBitmap: extraireImageCodeBarres(buffer),
       texteBrutDisponible: true,
       erreur: null,
     };

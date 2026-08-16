@@ -128,6 +128,9 @@ export default function BonDetail() {
         {bon.pin && (
           <span className="texte-discret">PIN / code confidentiel : <strong>{bon.pin}</strong></span>
         )}
+        {bon.codeBarresUrl && (
+          <img src={bon.codeBarresUrl} alt="Code-barres ou QR code du bon" className="image-code-barres" />
+        )}
         <span className={`expiration ${urgent ? 'urgent' : ''}`}>
           {bon.dateExpiration
             ? `${expire ? 'Expiré le' : "À utiliser avant le"} ${formatDateAffichage(bon.dateExpiration)}`

@@ -192,6 +192,7 @@ export async function creerBon({
   code,
   pin,
   visibilite,
+  codeBarresUrl,
   auteur,
 }) {
   const enseigne = await trouverOuCreerEnseigne(enseigneNom, auteur);
@@ -206,6 +207,7 @@ export async function creerBon({
     code: code.trim(),
     pin: pin?.trim() || null,
     visibilite: visibilite || 'partage',
+    codeBarresUrl: codeBarresUrl || null,
     archived: false,
     createdAt: maintenant(),
     createdBy: auteur,
@@ -230,6 +232,7 @@ export async function modifierBon({
   code,
   pin,
   visibilite,
+  codeBarresUrl,
   auteur,
 }) {
   const enseigne = await trouverOuCreerEnseigne(enseigneNom, auteur);
@@ -254,6 +257,7 @@ export async function modifierBon({
     code: code.trim(),
     pin: pin?.trim() || null,
     visibilite: visibilite || 'partage',
+    codeBarresUrl: codeBarresUrl || null,
   };
   await bonsStore.put(bonModifie);
 
