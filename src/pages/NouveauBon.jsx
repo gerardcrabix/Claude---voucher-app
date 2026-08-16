@@ -87,10 +87,11 @@ export default function NouveauBon() {
     };
   }, [enseigneNom]);
 
-  // Dès qu'un PDF est choisi : on essaie d'en extraire le montant, le code,
-  // le PIN et la date d'expiration, pour éviter la ressaisie. Ça ne marche
-  // que si le PDF contient du texte (pas une photo) — sinon les champs
-  // restent vides et se remplissent à la main comme d'habitude.
+  // Dès qu'un PDF est choisi : on essaie d'en extraire l'enseigne, le
+  // montant, le code, le PIN et la date d'expiration, pour éviter la
+  // ressaisie. Ça ne marche que si le PDF contient du texte (pas une photo)
+  // — sinon les champs restent vides et se remplissent à la main comme
+  // d'habitude.
   async function surChoixPdf(e) {
     const fichier = e.target.files?.[0];
     setPdf(fichier ?? null);
@@ -100,7 +101,7 @@ export default function NouveauBon() {
       return;
     }
     setEtatExtraction('en-cours');
-    const infos = await extraireInfosPdf(fichier);
+    const infos = await extraireInfosPdf(fichier, enseignes.map((e) => e.nom));
 
     if (infos.erreur) {
       // Vraie panne technique (réseau, PDF illisible…), distincte d'un PDF
@@ -112,6 +113,10 @@ export default function NouveauBon() {
     }
 
     let trouveQuelqueChose = false;
+    if (infos.enseigneNom && enseigneNom.trim() === '') {
+      setEnseigneNom(infos.enseigneNom);
+      trouveQuelqueChose = true;
+    }
     if (infos.montant && montant.trim() === '') {
       setMontant(infos.montant);
       trouveQuelqueChose = true;

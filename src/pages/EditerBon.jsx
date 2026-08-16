@@ -104,7 +104,6 @@ export default function EditerBon() {
           setCode={setCode}
           pin={pin}
           setPin={setPin}
-          datalistId="liste-enseignes-edition"
         />
 
         {erreur && <p className="champ erreur">{erreur}</p>}

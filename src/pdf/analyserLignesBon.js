@@ -157,3 +157,61 @@ export function chercherMontant(lignes) {
   }
   return null;
 }
+
+function echapperRegex(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Met en forme "LEROY MERLIN" -> "Leroy Merlin" : les enseignes sont
+// imprimées en capitales sur ces bons, mais se retapent normalement en
+// casse normale ailleurs dans l'app (accueil, liste enseignes…).
+function mettreEnFormeNom(brut) {
+  return brut
+    .trim()
+    .split(/\s+/)
+    .map((mot) => (mot.length <= 1 ? mot : mot[0] + mot.slice(1).toLowerCase()))
+    .join(' ');
+}
+
+// Gabarit générique observé sur Leroy Merlin / Fnac / IKEA (même prestataire
+// d'émission, "Reduc Factory") : "VOTRE E-CARTE CADEAU <ENSEIGNE>". Le "|"
+// sépare parfois deux enseignes jumelles (ex. "FNAC | DARTY") — on ne garde
+// que la première. Volontairement SANS le drapeau "i" : ce bandeau est
+// toujours en capitales sur les vrais bons, alors que la même formule
+// apparaît aussi en minuscules dans des phrases de mentions légales sans
+// rapport (ex. "présentez... votre e-carte cadeau sur votre smartphone") —
+// un drapeau insensible à la casse ferait aussi matcher la classe de
+// caractères capitales du groupe capturé sur ce texte-là, un bug réel
+// rencontré ici (repli erroné à "sur votre smartphone ou en l'imprimant").
+const RE_ENTETE_GENERIQUE = /VOTRE\s+E-?CARTE\s+CADEAU\s+([A-ZÀ-Ü0-9][A-ZÀ-Ü0-9\s|&'.-]{1,40})/;
+
+// Gabarit spécifique observé sur Carrefour (prestataire différent, sans le
+// motif générique ci-dessus) : "…C'EST TOUT CARREFOUR QUI S'OFFRE À VOUS !".
+// Même raison : pas de drapeau "i".
+const RE_ENTETE_CARREFOUR = /C['’]?EST TOUT\s+([A-ZÀ-Ü]{3,20})\s+QUI/;
+
+// Devine le nom de l'enseigne à partir du texte du PDF, pour éviter de le
+// retaper : essaie d'abord de reconnaître une enseigne déjà utilisée dans
+// l'app (übercas exacte réutilisée, jamais de doublon "Ikea"/"IKEA"), puis
+// se rabat sur les gabarits ci-dessus.
+export function chercherEnseigne(lignes, enseignesConnues = []) {
+  const texteComplet = lignes.join(' ');
+
+  for (const nom of enseignesConnues) {
+    if (!nom) continue;
+    const motif = new RegExp(`\\b${echapperRegex(nom)}\\b`, 'i');
+    if (motif.test(texteComplet)) return nom;
+  }
+
+  for (const ligne of lignes) {
+    const mGenerique = ligne.match(RE_ENTETE_GENERIQUE);
+    if (mGenerique) {
+      const brut = mGenerique[1].split('|')[0].replace(/[.,;:!?]+$/, '').trim();
+      if (brut) return mettreEnFormeNom(brut);
+    }
+    const mCarrefour = ligne.match(RE_ENTETE_CARREFOUR);
+    if (mCarrefour) return mettreEnFormeNom(mCarrefour[1]);
+  }
+
+  return null;
+}

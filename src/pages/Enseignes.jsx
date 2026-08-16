@@ -9,6 +9,7 @@ import {
   trouverOuCreerEnseigne,
 } from '../db/repository.js';
 import { useIdentity } from '../identity/IdentityContext.jsx';
+import { redimensionnerImageEnDataUrl } from '../utils/image.js';
 
 // Gestion des enseignes : création directe (pour pouvoir lui donner un logo
 // avant même le premier bon), renommer, lien de vérification de solde en
@@ -23,6 +24,7 @@ export default function Enseignes() {
   const [nomEdite, setNomEdite] = useState('');
   const [lienEdite, setLienEdite] = useState('');
   const [logoEdite, setLogoEdite] = useState('');
+  const [erreurLogo, setErreurLogo] = useState(null);
   const [erreur, setErreur] = useState(null);
   const [creationOuverte, setCreationOuverte] = useState(false);
   const [nomCreation, setNomCreation] = useState('');
@@ -40,7 +42,20 @@ export default function Enseignes() {
     setNomEdite(e.nom);
     setLienEdite(e.lienVerification ?? '');
     setLogoEdite(e.logoUrl ?? '');
+    setErreurLogo(null);
     setErreur(null);
+  }
+
+  async function surChoixLogo(ev) {
+    const fichier = ev.target.files?.[0];
+    ev.target.value = ''; // permet de rechoisir le même fichier ensuite
+    if (!fichier) return;
+    setErreurLogo(null);
+    try {
+      setLogoEdite(await redimensionnerImageEnDataUrl(fichier));
+    } catch (err) {
+      setErreurLogo(err?.message || "Impossible d'utiliser cette image.");
+    }
   }
 
   async function creerEnseigne(ev) {
@@ -158,20 +173,20 @@ export default function Enseignes() {
                         target="_blank"
                         rel="noreferrer"
                       >
-                        Chercher une image sur Google Images ↗
+                        Chercher un logo sur Google Images ↗
                       </a>
                       <span className="aide">
-                        Ouvre la recherche d'images dans un nouvel onglet. Sur l'image choisie : clic droit
-                        (ou appui long) → « Copier l'adresse de l'image », puis colle le lien ci-dessous.
+                        Pour l'utiliser : appui long sur l'image choisie → « Enregistrer l'image » (elle
+                        atterrit dans vos photos), puis choisissez-la ci-dessous.
                       </span>
                       <input
                         id={`logo-${e.id}`}
-                        type="url"
-                        placeholder="https://…"
-                        value={logoEdite}
-                        onChange={(ev) => setLogoEdite(ev.target.value)}
+                        type="file"
+                        accept="image/*"
+                        onChange={surChoixLogo}
                         style={{ marginTop: 8 }}
                       />
+                      {erreurLogo && <span className="aide erreur">{erreurLogo}</span>}
                       {logoEdite && (
                         <div className="apercu-logo">
                           <img src={logoEdite} alt="" onError={(ev) => { ev.currentTarget.style.display = 'none'; }} />

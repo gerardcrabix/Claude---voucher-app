@@ -15,6 +15,7 @@
 import {
   chercherCode,
   chercherDateExpiration,
+  chercherEnseigne,
   chercherMontant,
   chercherPin,
   construireLignes,
@@ -34,25 +35,34 @@ async function extraireLignes(file) {
 // aucune trace exploitable dans l'écran Diagnostic — ce qui empêche tout
 // dépannage à distance.
 function journaliserResultat(nomFichier, lignes, resultat) {
-  const resume = `code=${resultat.code ?? '—'} pin=${resultat.pin ?? '—'} `
+  const resume = `enseigne=${resultat.enseigneNom ?? '—'} code=${resultat.code ?? '—'} pin=${resultat.pin ?? '—'} `
     + `dateExpiration=${resultat.dateExpiration ?? '—'} montant=${resultat.montant ?? '—'}`;
   const extraitLignes = lignes.slice(0, 25).map((l, i) => `${i}: ${l}`).join('\n');
   ajouterEntree('extraction-pdf', `Lecture PDF "${nomFichier}" — ${resume}`, extraitLignes || null);
 }
 
-// Renvoie { code, pin, dateExpiration, montant, texteBrutDisponible, erreur }.
-// `erreur` n'est renseigné que si une vraie panne technique a empêché la
-// lecture (PDF corrompu, structure inattendue…) — à distinguer de "le PDF a
-// bien été lu mais ne contient rien d'exploitable".
-export async function extraireInfosPdf(file) {
+const RESULTAT_VIDE = {
+  enseigneNom: null, code: null, pin: null, dateExpiration: null, montant: null,
+  texteBrutDisponible: false, erreur: null,
+};
+
+// Renvoie { enseigneNom, code, pin, dateExpiration, montant,
+// texteBrutDisponible, erreur }. `erreur` n'est renseigné que si une vraie
+// panne technique a empêché la lecture (PDF corrompu, structure
+// inattendue…) — à distinguer de "le PDF a bien été lu mais ne contient
+// rien d'exploitable". `nomsEnseignesConnues` (optionnel) améliore la
+// détection de l'enseigne en la faisant correspondre en priorité à une
+// enseigne déjà utilisée dans l'app (voir chercherEnseigne).
+export async function extraireInfosPdf(file, nomsEnseignesConnues = []) {
   try {
     const lignes = await extraireLignes(file);
     if (lignes.length === 0) {
-      const resultat = { code: null, pin: null, dateExpiration: null, montant: null, texteBrutDisponible: false, erreur: null };
+      const resultat = { ...RESULTAT_VIDE };
       journaliserResultat(file?.name ?? '?', lignes, resultat);
       return resultat;
     }
     const resultat = {
+      enseigneNom: chercherEnseigne(lignes, nomsEnseignesConnues),
       code: chercherCode(lignes),
       pin: chercherPin(lignes),
       dateExpiration: chercherDateExpiration(lignes),
@@ -65,6 +75,6 @@ export async function extraireInfosPdf(file) {
   } catch (e) {
     const message = e?.message || String(e);
     ajouterEntree('extraction-pdf', `Échec lecture PDF "${file?.name ?? '?'}" : ${message}`, e?.stack);
-    return { code: null, pin: null, dateExpiration: null, montant: null, texteBrutDisponible: false, erreur: message };
+    return { ...RESULTAT_VIDE, erreur: message };
   }
 }

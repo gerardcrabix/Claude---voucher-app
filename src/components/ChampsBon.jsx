@@ -14,27 +14,39 @@ export default function ChampsBon({
   setCode,
   pin,
   setPin,
-  datalistId = 'liste-enseignes',
   apresEnseigne = null,
 }) {
   return (
     <>
       <div className="champ">
         <label htmlFor="enseigne">Enseigne</label>
+        {enseignes.length > 0 && (
+          <div className="boutons-enseignes">
+            {enseignes.map((e) => (
+              <button
+                key={e.id}
+                type="button"
+                className={
+                  'bouton-enseigne'
+                  + (enseigneNom.trim().toLowerCase() === e.nom.toLowerCase() ? ' active' : '')
+                }
+                onClick={() => setEnseigneNom(e.nom)}
+              >
+                {e.nom}
+              </button>
+            ))}
+          </div>
+        )}
         <input
           id="enseigne"
-          list={datalistId}
           type="text"
           placeholder="ex. Boursobank"
           value={enseigneNom}
           onChange={(e) => setEnseigneNom(e.target.value)}
         />
-        <datalist id={datalistId}>
-          {enseignes.map((e) => (
-            <option key={e.id} value={e.nom} />
-          ))}
-        </datalist>
-        <span className="aide">Nouvelle enseigne ? Tapez simplement son nom.</span>
+        <span className="aide">
+          {enseignes.length > 0 ? 'Cliquez une enseigne ci-dessus, ou tapez-en une nouvelle.' : 'Nouvelle enseigne ? Tapez simplement son nom.'}
+        </span>
       </div>
 
       {apresEnseigne}
