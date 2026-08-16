@@ -187,15 +187,44 @@ function analyserCMapToUnicode(texte) {
   return cmap;
 }
 
+// WinAnsiEncoding (proche de la page de code Windows CP1252) ne coïncide
+// avec Latin-1 que sur 0x00-0x7F et 0xA0-0xFF : la plage 0x80-0x9F diffère
+// (Latin-1 y met des caractères de contrôle C1 invisibles, WinAnsi/CP1252 y
+// met €, guillemets courbes, tirets demi/cadratin, puce…). Bug réel trouvé
+// sur le bon Carrefour : le montant "50.00 €" perdait son "€" (remplacé par
+// l'octet 0x80 brut, un caractère de contrôle invisible), ce qui cassait
+// silencieusement la reconnaissance du montant — sans erreur ni log, juste
+// un champ resté vide. Table volontairement partielle : seuls les points de
+// code que WinAnsiEncoding définit réellement sont couverts, le reste passe
+// tel quel (comme avant ce correctif).
+const CP1252_PLAGE_HAUTE = {
+  0x80: '€', 0x82: '‚', 0x83: 'ƒ', 0x84: '„',
+  0x85: '…', 0x86: '†', 0x87: '‡', 0x88: 'ˆ',
+  0x89: '‰', 0x8A: 'Š', 0x8B: '‹', 0x8C: 'Œ',
+  0x8E: 'Ž', 0x91: '‘', 0x92: '’', 0x93: '“',
+  0x94: '”', 0x95: '•', 0x96: '–', 0x97: '—',
+  0x98: '˜', 0x99: '™', 0x9A: 'š', 0x9B: '›',
+  0x9C: 'œ', 0x9E: 'ž', 0x9F: 'Ÿ',
+};
+
+function corrigerWinAnsi(texte) {
+  let res = '';
+  for (let i = 0; i < texte.length; i++) {
+    const code = texte.charCodeAt(i);
+    res += code >= 0x80 && code <= 0x9f ? (CP1252_PLAGE_HAUTE[code] ?? texte[i]) : texte[i];
+  }
+  return res;
+}
+
 // Décode les octets bruts capturés par Tj/TJ (1 caractère JS = 1 octet du
 // flux, voir octetsVersLatin1) en texte réel, selon la police en cours :
-// - police simple (1 octet = 1 caractère) : comportement historique,
-//   passthrough Latin1 (proche de WinAnsiEncoding pour le français courant) ;
+// - police simple (1 octet = 1 caractère) : passthrough Latin1, corrigé sur
+//   la plage 0x80-0x9F (voir corrigerWinAnsi) ;
 // - police composite Type0 (2 octets = 1 CID) : passage par sa table
 //   ToUnicode. Un CID absent de la table est ignoré plutôt que de produire
 //   un caractère erroné.
 function decoderTexteAvecPolice(octets, decodeurPolice) {
-  if (!decodeurPolice || !decodeurPolice.deuxOctets) return octets;
+  if (!decodeurPolice || !decodeurPolice.deuxOctets) return corrigerWinAnsi(octets);
   let res = '';
   for (let i = 0; i + 1 < octets.length; i += 2) {
     const code = (octets.charCodeAt(i) << 8) | octets.charCodeAt(i + 1);

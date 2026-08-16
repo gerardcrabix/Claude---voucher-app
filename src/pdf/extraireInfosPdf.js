@@ -12,7 +12,13 @@
 // navigateur récente : juste ArrayBuffer, regex et de l'arithmétique. Ces
 // bons sont des PDF simples générés par un automate — pas besoin d'un
 // moteur PDF complet pour en extraire le texte.
-import { chercherCode, chercherDateExpiration, chercherPin, construireLignes } from './analyserLignesBon.js';
+import {
+  chercherCode,
+  chercherDateExpiration,
+  chercherMontant,
+  chercherPin,
+  construireLignes,
+} from './analyserLignesBon.js';
 import { extraireItemsPdf } from './lecteurPdfMinimal.js';
 import { ajouterEntree } from '../diagnostic/journal.js';
 
@@ -22,7 +28,19 @@ async function extraireLignes(file) {
   return construireLignes(items);
 }
 
-// Renvoie { code, pin, dateExpiration, texteBrutDisponible, erreur }.
+// Journalise systématiquement le résultat de l'extraction (pas seulement
+// les pannes techniques) : sans ça, un PDF lu "avec succès" mais dont les
+// libellés ne matchent rien (ex. un gabarit encore différent) ne laisse
+// aucune trace exploitable dans l'écran Diagnostic — ce qui empêche tout
+// dépannage à distance.
+function journaliserResultat(nomFichier, lignes, resultat) {
+  const resume = `code=${resultat.code ?? '—'} pin=${resultat.pin ?? '—'} `
+    + `dateExpiration=${resultat.dateExpiration ?? '—'} montant=${resultat.montant ?? '—'}`;
+  const extraitLignes = lignes.slice(0, 25).map((l, i) => `${i}: ${l}`).join('\n');
+  ajouterEntree('extraction-pdf', `Lecture PDF "${nomFichier}" — ${resume}`, extraitLignes || null);
+}
+
+// Renvoie { code, pin, dateExpiration, montant, texteBrutDisponible, erreur }.
 // `erreur` n'est renseigné que si une vraie panne technique a empêché la
 // lecture (PDF corrompu, structure inattendue…) — à distinguer de "le PDF a
 // bien été lu mais ne contient rien d'exploitable".
@@ -30,18 +48,23 @@ export async function extraireInfosPdf(file) {
   try {
     const lignes = await extraireLignes(file);
     if (lignes.length === 0) {
-      return { code: null, pin: null, dateExpiration: null, texteBrutDisponible: false, erreur: null };
+      const resultat = { code: null, pin: null, dateExpiration: null, montant: null, texteBrutDisponible: false, erreur: null };
+      journaliserResultat(file?.name ?? '?', lignes, resultat);
+      return resultat;
     }
-    return {
+    const resultat = {
       code: chercherCode(lignes),
       pin: chercherPin(lignes),
       dateExpiration: chercherDateExpiration(lignes),
+      montant: chercherMontant(lignes),
       texteBrutDisponible: true,
       erreur: null,
     };
+    journaliserResultat(file?.name ?? '?', lignes, resultat);
+    return resultat;
   } catch (e) {
     const message = e?.message || String(e);
     ajouterEntree('extraction-pdf', `Échec lecture PDF "${file?.name ?? '?'}" : ${message}`, e?.stack);
-    return { code: null, pin: null, dateExpiration: null, texteBrutDisponible: false, erreur: message };
+    return { code: null, pin: null, dateExpiration: null, montant: null, texteBrutDisponible: false, erreur: message };
   }
 }

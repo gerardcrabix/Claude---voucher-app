@@ -140,3 +140,20 @@ export function chercherPin(lignes) {
     return m ? m[1] : null;
   });
 }
+
+// Montant du bon : sur les 4 modèles réels rencontrés (Carrefour, Leroy
+// Merlin, Fnac, IKEA), il n'est jamais précédé d'un libellé explicite —
+// c'est une ligne à lui seul, ex. "50,00 €" ou "50.00 " (Carrefour, avec un
+// point). D'où une reconnaissance différente des autres champs : la ligne
+// entière doit correspondre exactement (ancrée ^…$) pour ne jamais
+// capturer un montant qui apparaîtrait au hasard au milieu d'une phrase de
+// mentions légales (ex. "…dans la limite de 3000€…").
+const RE_MONTANT_LIGNE = /^(\d{1,4})[,.](\d{2})\s*€?$/;
+
+export function chercherMontant(lignes) {
+  for (const ligne of lignes) {
+    const m = ligne.trim().match(RE_MONTANT_LIGNE);
+    if (m) return `${m[1]},${m[2]}`;
+  }
+  return null;
+}

@@ -65,6 +65,22 @@ export function dateExpirationParDefaut(dateAchat = aujourdhuiParis()) {
   return `${y}-${m}-${d}`;
 }
 
+// Inverse de dateExpirationParDefaut : déduit la date d'achat à partir de
+// la date d'expiration lue sur le PDF (date de fin − 1 an + 1 jour), pour
+// les bons dont la validité est "1 an à compter de l'achat" et qui n'imprime
+// que la date de fin — c'est le cas de tous les modèles rencontrés
+// jusqu'ici (Carrefour, Leroy Merlin, Fnac, IKEA).
+export function dateAchatDepuisExpiration(dateExpiration) {
+  const [annee, mois, jour] = dateExpiration.split('-').map(Number);
+  const date = new Date(annee, mois - 1, jour);
+  date.setFullYear(date.getFullYear() - 1);
+  date.setDate(date.getDate() + 1);
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 const NOMS_MOIS = [
   'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
   'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre',

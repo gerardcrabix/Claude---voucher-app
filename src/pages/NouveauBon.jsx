@@ -8,7 +8,7 @@ import {
   trouverEnseigneParNom,
 } from '../db/repository.js';
 import { eurosVersCentimes } from '../utils/money.js';
-import { dateExpirationParDefaut, dateInputAujourdhui } from '../utils/dates.js';
+import { dateAchatDepuisExpiration, dateExpirationParDefaut, dateInputAujourdhui } from '../utils/dates.js';
 import { useIdentity } from '../identity/IdentityContext.jsx';
 import { extraireInfosPdf } from '../pdf/extraireInfosPdf.js';
 import { ajouterEntree } from '../diagnostic/journal.js';
@@ -27,6 +27,14 @@ export default function NouveauBon() {
   const [soldeInfo, setSoldeInfo] = useState(null);
   const [montant, setMontant] = useState('');
   const [dateAchat, setDateAchat] = useState(dateInputAujourdhui());
+  // Distingue "encore la date du jour par défaut" de "choisie" (par
+  // l'utilisateur ou déduite d'un PDF), pour ne jamais écraser un choix
+  // volontaire si un PDF est ajouté après une saisie manuelle.
+  const [dateAchatTouchee, setDateAchatTouchee] = useState(false);
+  function surChangementDateAchat(valeur) {
+    setDateAchat(valeur);
+    setDateAchatTouchee(true);
+  }
   // Par défaut, un an après la date d'achat moins un jour — modifiable à
   // tout moment. `dateExpirationTouchee` distingue "encore la valeur par
   // défaut" (recalculée si la date d'achat change) de "choisie" (par
@@ -79,10 +87,10 @@ export default function NouveauBon() {
     };
   }, [enseigneNom]);
 
-  // Dès qu'un PDF est choisi : on essaie d'en extraire le code, le PIN et la
-  // date d'expiration, pour éviter la ressaisie. Ça ne marche que si le PDF
-  // contient du texte (pas une photo) — sinon les champs restent vides et se
-  // remplissent à la main comme d'habitude.
+  // Dès qu'un PDF est choisi : on essaie d'en extraire le montant, le code,
+  // le PIN et la date d'expiration, pour éviter la ressaisie. Ça ne marche
+  // que si le PDF contient du texte (pas une photo) — sinon les champs
+  // restent vides et se remplissent à la main comme d'habitude.
   async function surChoixPdf(e) {
     const fichier = e.target.files?.[0];
     setPdf(fichier ?? null);
@@ -104,6 +112,10 @@ export default function NouveauBon() {
     }
 
     let trouveQuelqueChose = false;
+    if (infos.montant && montant.trim() === '') {
+      setMontant(infos.montant);
+      trouveQuelqueChose = true;
+    }
     if (infos.code && code.trim() === '') {
       setCode(infos.code);
       trouveQuelqueChose = true;
@@ -116,6 +128,13 @@ export default function NouveauBon() {
       setDateExpiration(infos.dateExpiration);
       setDateExpirationTouchee(true);
       trouveQuelqueChose = true;
+      // Ces bons n'impriment que la date de fin de validité, jamais la date
+      // d'achat — mais leur validité est toujours "1 an depuis l'achat", donc
+      // la date d'achat s'en déduit (voir dateAchatDepuisExpiration). On ne
+      // touche à rien si l'utilisateur avait déjà choisi sa propre date.
+      if (!dateAchatTouchee) {
+        setDateAchat(dateAchatDepuisExpiration(infos.dateExpiration));
+      }
     }
     setEtatExtraction(trouveQuelqueChose ? 'trouve' : 'rien-trouve');
   }
@@ -220,7 +239,7 @@ export default function NouveauBon() {
           montant={montant}
           setMontant={setMontant}
           dateAchat={dateAchat}
-          setDateAchat={setDateAchat}
+          setDateAchat={surChangementDateAchat}
           dateExpiration={dateExpiration}
           setDateExpiration={(v) => {
             setDateExpirationTouchee(true);
