@@ -1,0 +1,227 @@
+import { useEffect, useState } from 'react';
+import { useNavigate, useParams, Link } from 'react-router-dom';
+import {
+  obtenirBon,
+  obtenirPdf,
+  enregistrerPdf,
+  supprimerPdf,
+  terminerBon,
+  supprimerBonDefinitivement,
+} from '../db/repository.js';
+import { centimesVersAffichage } from '../utils/money.js';
+import { formatDateAffichage, estSousLeSeuil, estExpire } from '../utils/dates.js';
+import { libelleIdentite } from '../identity/IdentityContext.jsx';
+import ModaleDepense from '../components/ModaleDepense.jsx';
+import ModaleCorrigerSolde from '../components/ModaleCorrigerSolde.jsx';
+import ConfirmDialog from '../components/ConfirmDialog.jsx';
+
+const LIBELLES_STATUT = {
+  actif: 'Actif',
+  expire: 'Expiré',
+  solde: 'Solde épuisé',
+  termine: 'Terminé',
+};
+
+export default function BonDetail() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+
+  const [bon, setBon] = useState(null);
+  const [pdf, setPdf] = useState(null);
+  const [pdfUrl, setPdfUrl] = useState(null);
+  const [modale, setModale] = useState(null); // 'depenser' | 'corriger' | 'supprimer' | null
+
+  async function charger() {
+    const b = await obtenirBon(id);
+    setBon(b);
+    const p = await obtenirPdf(id);
+    setPdf(p);
+  }
+
+  useEffect(() => {
+    charger();
+  }, [id]);
+
+  useEffect(() => {
+    if (!pdf) {
+      setPdfUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(pdf.blob);
+    setPdfUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [pdf]);
+
+  async function surChoixPdf(e) {
+    const fichier = e.target.files?.[0];
+    if (!fichier) return;
+    await enregistrerPdf(id, fichier);
+    await charger();
+  }
+
+  async function surSuppressionPdf() {
+    await supprimerPdf(id);
+    await charger();
+  }
+
+  async function surTerminer() {
+    await terminerBon(id);
+    await charger();
+  }
+
+  async function surSuppressionDefinitive() {
+    await supprimerBonDefinitivement(id);
+    navigate('/');
+  }
+
+  if (!bon) {
+    return <div className="contenu"><p className="texte-discret">Chargement…</p></div>;
+  }
+
+  const urgent = estSousLeSeuil(bon.dateExpiration);
+  const expire = estExpire(bon.dateExpiration);
+
+  const historique = [
+    ...bon.mouvements.map((m) => ({ type: 'depense', ...m })),
+    ...bon.overrides.map((o) => ({ type: 'correction', ...o })),
+  ].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+
+  return (
+    <div className="contenu">
+      <Link to="/" className="bouton-discret">← Retour</Link>
+
+      <div className="carte-bon">
+        <div className="ligne-haut">
+          <span className="enseigne">{bon.enseigne?.nom}</span>
+          <span className="pilule-statut">{LIBELLES_STATUT[bon.statut]}</span>
+        </div>
+        <p className="solde" style={{ fontSize: '2rem' }}>{centimesVersAffichage(bon.solde)}</p>
+        {bon.code && <span className="code" style={{ fontSize: '1.1rem' }}>{bon.code}</span>}
+        <span className={`expiration ${urgent ? 'urgent' : ''}`}>
+          {bon.dateExpiration
+            ? `${expire ? 'Expiré le' : "À utiliser avant le"} ${formatDateAffichage(bon.dateExpiration)}`
+            : "Pas de date d'expiration"}
+        </span>
+        <p className="texte-discret">
+          Acheté le {formatDateAffichage(bon.dateAchat)}
+          {bon.tauxReduction != null && ` · réduction ${bon.tauxReduction}%`}
+          {' · montant initial '}
+          {centimesVersAffichage(bon.montantInitial)}
+        </p>
+        <p className="texte-discret">Créé par {libelleIdentite(bon.createdBy)}</p>
+      </div>
+
+      <div className="actions">
+        <button className="bouton-grand bouton-principal" onClick={() => setModale('depenser')}>
+          Dépenser
+        </button>
+        <button className="bouton-grand bouton-secondaire" onClick={() => setModale('corriger')}>
+          Corriger le solde
+        </button>
+      </div>
+
+      <div>
+        <h2>Document</h2>
+        {pdf ? (
+          <div className="actions">
+            <a
+              className="bouton-grand bouton-secondaire"
+              href={pdfUrl}
+              target="_blank"
+              rel="noreferrer"
+              download={pdf.filename}
+            >
+              Voir le PDF
+            </a>
+            <button className="bouton-grand bouton-danger" onClick={surSuppressionPdf}>
+              Supprimer
+            </button>
+          </div>
+        ) : (
+          <label className="bouton-grand bouton-secondaire bouton-pleine-largeur" style={{ display: 'block', textAlign: 'center' }}>
+            Ajouter le PDF
+            <input type="file" accept="application/pdf" onChange={surChoixPdf} style={{ display: 'none' }} />
+          </label>
+        )}
+        {pdf && (
+          <label className="bouton-discret" style={{ display: 'inline-block', marginTop: 8 }}>
+            Remplacer le PDF
+            <input type="file" accept="application/pdf" onChange={surChoixPdf} style={{ display: 'none' }} />
+          </label>
+        )}
+      </div>
+
+      <div>
+        <h2>Historique</h2>
+        {historique.length === 0 ? (
+          <p className="texte-discret">Aucun mouvement pour l'instant.</p>
+        ) : (
+          <div className="liste-simple">
+            {historique.map((h) => (
+              <div key={h.id} className="ligne-enseigne">
+                {h.type === 'depense' ? (
+                  <>
+                    <strong>-{centimesVersAffichage(h.montant)}</strong>
+                    <span className="texte-discret">
+                      {formatDateAffichage(h.date)} · {libelleIdentite(h.auteur)}
+                      {h.note && ` · ${h.note}`}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <strong>Solde corrigé à {centimesVersAffichage(h.nouveauSolde)}</strong>
+                    <span className="texte-discret">
+                      {libelleIdentite(h.auteur)}
+                      {h.motif && ` · ${h.motif}`}
+                    </span>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="actions">
+        {bon.statut !== 'termine' && (
+          <button className="bouton-grand bouton-secondaire" onClick={surTerminer}>
+            Terminé
+          </button>
+        )}
+        <button className="bouton-grand bouton-danger" onClick={() => setModale('supprimer')}>
+          Supprimer définitivement
+        </button>
+      </div>
+
+      {modale === 'depenser' && (
+        <ModaleDepense
+          bon={bon}
+          onFermer={() => setModale(null)}
+          onEnregistre={async () => {
+            setModale(null);
+            await charger();
+          }}
+        />
+      )}
+      {modale === 'corriger' && (
+        <ModaleCorrigerSolde
+          bon={bon}
+          onFermer={() => setModale(null)}
+          onEnregistre={async () => {
+            setModale(null);
+            await charger();
+          }}
+        />
+      )}
+      {modale === 'supprimer' && (
+        <ConfirmDialog
+          titre="Supprimer définitivement"
+          message={`Cette action supprime le bon ${bon.enseigne?.nom ?? ''} et tout son historique. C'est irréversible.`}
+          libelleConfirmer="Supprimer"
+          onAnnuler={() => setModale(null)}
+          onConfirmer={surSuppressionDefinitive}
+        />
+      )}
+    </div>
+  );
+}
