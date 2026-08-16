@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { centimesVersAffichage } from '../utils/money.js';
 import { formatDateAffichage, estSousLeSeuil, estExpire } from '../utils/dates.js';
+import { libelleIdentite } from '../identity/IdentityContext.jsx';
 
 // Carte affichée sur l'écran d'accueil. Toucher la carte ouvre le détail du
 // bon ; le bouton "Dépenser" ouvre directement la saisie rapide (1er appui),
@@ -9,11 +10,15 @@ export default function BonCard({ bon, onDepenser }) {
   const navigate = useNavigate();
   const urgent = estSousLeSeuil(bon.dateExpiration);
   const expire = estExpire(bon.dateExpiration);
+  const prive = bon.visibilite && bon.visibilite !== 'partage';
 
   return (
     <div className="carte-bon" onClick={() => navigate(`/bon/${bon.id}`)}>
       <div className="ligne-haut">
-        <span className="enseigne">{bon.enseigne?.nom ?? 'Enseigne'}</span>
+        <span className="enseigne">
+          {bon.enseigne?.nom ?? 'Enseigne'}
+          {prive && <span className="pilule-statut" style={{ marginLeft: 6 }}>{libelleIdentite(bon.visibilite)} uniquement</span>}
+        </span>
         <span className="montant-carte">
           <span className="solde">{centimesVersAffichage(bon.solde)}</span>
           {bon.solde !== bon.montantInitial && (
@@ -23,7 +28,12 @@ export default function BonCard({ bon, onDepenser }) {
           )}
         </span>
       </div>
-      {bon.code && <span className="code">{bon.code}</span>}
+      {(bon.code || bon.pin) && (
+        <div className="codes">
+          {bon.code && <span className="code">{bon.code}</span>}
+          {bon.pin && <span className="pin">PIN {bon.pin}</span>}
+        </div>
+      )}
       <span className={`expiration ${urgent ? 'urgent' : ''}`}>
         {bon.dateExpiration
           ? `${expire ? 'Expiré le' : "À utiliser avant le"} ${formatDateAffichage(bon.dateExpiration)}`

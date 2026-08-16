@@ -97,6 +97,15 @@ export async function supprimerEnseigne(id) {
 
 // ---- Lecture enrichie des bons --------------------------------------------
 
+// Un bon "partagé" (valeur par défaut, y compris les bons créés avant
+// l'existence de ce champ) est visible par les deux identités ; un bon
+// "moi"/"elle" n'est visible que par son auteur désigné. Ce n'est pas une
+// vraie sécurité (voir motsDePasse.js) : juste un filtrage d'affichage
+// cohérent avec le reste du MVP, pas une garantie côté serveur.
+function visiblePour(bon, identite) {
+  return !bon.visibilite || bon.visibilite === 'partage' || bon.visibilite === identite;
+}
+
 async function enrichirBon(db, bon) {
   const [mouvements, overrides, modifications] = await Promise.all([
     db.getAllFromIndex('mouvements', 'parBon', bon.id),
@@ -108,12 +117,13 @@ async function enrichirBon(db, bon) {
   return { ...bon, solde, statut, mouvements, overrides, modifications };
 }
 
-export async function listerBonsEnrichis() {
+export async function listerBonsEnrichis(identite) {
   const db = await getDb();
-  const [bons, enseignes] = await Promise.all([
+  const [tousLesBons, enseignes] = await Promise.all([
     db.getAll('bons'),
     db.getAll('enseignes'),
   ]);
+  const bons = tousLesBons.filter((b) => visiblePour(b, identite));
   const enseignesParId = new Map(enseignes.map((e) => [e.id, e]));
   const enrichis = await Promise.all(bons.map((b) => enrichirBon(db, b)));
   return enrichis
@@ -121,10 +131,10 @@ export async function listerBonsEnrichis() {
     .sort((a, b) => cleTriUrgence(a.dateExpiration).localeCompare(cleTriUrgence(b.dateExpiration)));
 }
 
-export async function obtenirBon(id) {
+export async function obtenirBon(id, identite) {
   const db = await getDb();
   const bon = await db.get('bons', id);
-  if (!bon) return null;
+  if (!bon || !visiblePour(bon, identite)) return null;
   const enseigne = await db.get('enseignes', bon.enseigneId);
   const enrichi = await enrichirBon(db, bon);
   return { ...enrichi, enseigne };
@@ -132,10 +142,13 @@ export async function obtenirBon(id) {
 
 // Solde actif déjà existant pour une enseigne : c'est le cœur de l'alerte
 // anti-oubli (section 4). Appelé dès la sélection de l'enseigne, avant toute
-// validation du formulaire de création.
-export async function getSoldeActifParEnseigne(enseigneId) {
+// validation du formulaire de création. Ne compte que les bons visibles par
+// `identite`, pour ne jamais révéler l'existence d'un bon privé de l'autre
+// personne à travers ce total.
+export async function getSoldeActifParEnseigne(enseigneId, identite) {
   const db = await getDb();
-  const bons = await db.getAllFromIndex('bons', 'parEnseigne', enseigneId);
+  const tousLesBons = await db.getAllFromIndex('bons', 'parEnseigne', enseigneId);
+  const bons = tousLesBons.filter((b) => visiblePour(b, identite));
   const enrichis = await Promise.all(bons.map((b) => enrichirBon(db, b)));
   const actifs = enrichis.filter((b) => b.statut === 'actif');
 
@@ -157,12 +170,12 @@ export async function getSoldeActifParEnseigne(enseigneId) {
 
 // Pastilles par enseigne sur l'écran d'accueil : même donnée que l'alerte
 // anti-oubli, mais pour toutes les enseignes ayant au moins un bon actif.
-export async function listerPastillesEnseignes() {
+export async function listerPastillesEnseignes(identite) {
   const enseignes = await listerEnseignes();
   const pastilles = await Promise.all(
     enseignes.map(async (e) => ({
       enseigne: e,
-      ...(await getSoldeActifParEnseigne(e.id)),
+      ...(await getSoldeActifParEnseigne(e.id, identite)),
     }))
   );
   return pastilles.filter((p) => p.nombreBons > 0);
@@ -178,6 +191,7 @@ export async function creerBon({
   dateExpiration,
   code,
   pin,
+  visibilite,
   auteur,
 }) {
   const enseigne = await trouverOuCreerEnseigne(enseigneNom, auteur);
@@ -191,6 +205,7 @@ export async function creerBon({
     dateExpiration: dateExpiration || null,
     code: code.trim(),
     pin: pin?.trim() || null,
+    visibilite: visibilite || 'partage',
     archived: false,
     createdAt: maintenant(),
     createdBy: auteur,
@@ -214,6 +229,7 @@ export async function modifierBon({
   dateExpiration,
   code,
   pin,
+  visibilite,
   auteur,
 }) {
   const enseigne = await trouverOuCreerEnseigne(enseigneNom, auteur);
@@ -237,6 +253,7 @@ export async function modifierBon({
     dateExpiration: dateExpiration || null,
     code: code.trim(),
     pin: pin?.trim() || null,
+    visibilite: visibilite || 'partage',
   };
   await bonsStore.put(bonModifie);
 

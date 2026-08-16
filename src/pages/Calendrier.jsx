@@ -3,20 +3,22 @@ import { Link } from 'react-router-dom';
 import { listerBonsEnrichis } from '../db/repository.js';
 import { estSousLeSeuil, formatDateAffichage, nomMois, prochainsMois } from '../utils/dates.js';
 import { centimesVersAffichage } from '../utils/money.js';
+import { useIdentity } from '../identity/IdentityContext.jsx';
 
-// Vue calendrier sur les 3 prochains mois : juste ce qu'il faut pour voir
-// d'un coup d'œil ce qui arrive à échéance — mois, date, enseigne, montant.
-// Pas de grille de tous les jours du mois : ça n'apporte rien pour la
-// quarantaine de jours sans bon, seuls les jours avec un bon comptent.
+// Vue calendrier sur les 3 (ou 6) prochains mois : juste ce qu'il faut pour
+// voir d'un coup d'œil ce qui arrive à échéance — mois, date, enseigne,
+// montant. Pas de grille de tous les jours du mois : ça n'apporte rien pour
+// la quarantaine de jours sans bon, seuls les jours avec un bon comptent.
 export default function Calendrier() {
+  const { identite } = useIdentity();
   const [bons, setBons] = useState(null);
   const [nombreMois, setNombreMois] = useState(3);
 
   useEffect(() => {
-    listerBonsEnrichis().then((tous) =>
+    listerBonsEnrichis(identite).then((tous) =>
       setBons(tous.filter((b) => b.statut === 'actif' && b.dateExpiration))
     );
-  }, []);
+  }, [identite]);
 
   if (bons === null) {
     return <div className="contenu"><p className="texte-discret">Chargement…</p></div>;

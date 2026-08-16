@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { listerBonsEnrichis, listerPastillesEnseignes } from '../db/repository.js';
 import { estSousLeSeuil } from '../utils/dates.js';
 import { ajouterEntree } from '../diagnostic/journal.js';
+import { useIdentity } from '../identity/IdentityContext.jsx';
 import BonCard from '../components/BonCard.jsx';
 import EnseignePill from '../components/EnseignePill.jsx';
 import BandeauExpiration from '../components/BandeauExpiration.jsx';
@@ -11,6 +12,7 @@ import ModaleDepense from '../components/ModaleDepense.jsx';
 // Écran d'accueil : la seule chose à comprendre pour elle. Liste des bons
 // actifs triés par urgence, pastilles par enseigne, alerte expiration.
 export default function Accueil() {
+  const { identite } = useIdentity();
   const [bons, setBons] = useState(null);
   const [pastilles, setPastilles] = useState([]);
   const [enseigneFiltre, setEnseigneFiltre] = useState(null);
@@ -21,8 +23,8 @@ export default function Accueil() {
     setErreurChargement(null);
     try {
       const [tousBons, toutesPastilles] = await Promise.all([
-        listerBonsEnrichis(),
-        listerPastillesEnseignes(),
+        listerBonsEnrichis(identite),
+        listerPastillesEnseignes(identite),
       ]);
       setBons(tousBons);
       setPastilles(toutesPastilles);

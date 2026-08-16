@@ -10,7 +10,7 @@ import {
 } from '../db/repository.js';
 import { centimesVersAffichage } from '../utils/money.js';
 import { formatDateAffichage, estSousLeSeuil, estExpire } from '../utils/dates.js';
-import { libelleIdentite } from '../identity/IdentityContext.jsx';
+import { libelleIdentite, useIdentity } from '../identity/IdentityContext.jsx';
 import ModaleDepense from '../components/ModaleDepense.jsx';
 import ModaleCorrigerSolde from '../components/ModaleCorrigerSolde.jsx';
 import ConfirmDialog from '../components/ConfirmDialog.jsx';
@@ -25,17 +25,22 @@ const LIBELLES_STATUT = {
 export default function BonDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { identite } = useIdentity();
 
   const [bon, setBon] = useState(null);
   const [pdf, setPdf] = useState(null);
   const [pdfUrl, setPdfUrl] = useState(null);
   const [modale, setModale] = useState(null); // 'depenser' | 'corriger' | 'supprimer' | null
+  const [chargementTermine, setChargementTermine] = useState(false);
 
   async function charger() {
-    const b = await obtenirBon(id);
+    const b = await obtenirBon(id, identite);
     setBon(b);
-    const p = await obtenirPdf(id);
-    setPdf(p);
+    if (b) {
+      const p = await obtenirPdf(id);
+      setPdf(p);
+    }
+    setChargementTermine(true);
   }
 
   useEffect(() => {
@@ -75,7 +80,17 @@ export default function BonDetail() {
   }
 
   if (!bon) {
-    return <div className="contenu"><p className="texte-discret">Chargement…</p></div>;
+    if (!chargementTermine) {
+      return <div className="contenu"><p className="texte-discret">Chargement…</p></div>;
+    }
+    return (
+      <div className="contenu">
+        <div className="vide">
+          <p>Bon introuvable ou non accessible.</p>
+          <Link to="/" className="bouton-discret">← Retour à l'accueil</Link>
+        </div>
+      </div>
+    );
   }
 
   const urgent = estSousLeSeuil(bon.dateExpiration);

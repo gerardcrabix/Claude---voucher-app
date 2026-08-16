@@ -14,6 +14,7 @@ import { extraireInfosPdf } from '../pdf/extraireInfosPdf.js';
 import { ajouterEntree } from '../diagnostic/journal.js';
 import AlerteAntiOubli from '../components/AlerteAntiOubli.jsx';
 import ChampsBon from '../components/ChampsBon.jsx';
+import SelecteurVisibilite from '../components/SelecteurVisibilite.jsx';
 
 // Création d'un bon. L'alerte anti-oubli (section 4) se déclenche dès que
 // l'enseigne est reconnue, avant toute validation du formulaire — c'est la
@@ -44,6 +45,7 @@ export default function NouveauBon() {
   const [dateExpirationTouchee, setDateExpirationTouchee] = useState(false);
   const [code, setCode] = useState('');
   const [pin, setPin] = useState('');
+  const [visibilite, setVisibilite] = useState('partage');
   const [pdf, setPdf] = useState(null);
   // null | 'en-cours' | 'trouve' | 'rien-trouve' | 'echec-technique'
   const [etatExtraction, setEtatExtraction] = useState(null);
@@ -76,7 +78,7 @@ export default function NouveauBon() {
       const existante = await trouverEnseigneParNom(nom);
       if (annule) return;
       if (existante) {
-        setSoldeInfo(await getSoldeActifParEnseigne(existante.id));
+        setSoldeInfo(await getSoldeActifParEnseigne(existante.id, identite));
       } else {
         setSoldeInfo({ totalCentimes: 0, nombreBons: 0, prochaineExpiration: null });
       }
@@ -172,6 +174,7 @@ export default function NouveauBon() {
         dateExpiration: dateExpiration || null,
         code,
         pin,
+        visibilite,
         auteur: identite,
       }));
     } catch {
@@ -262,6 +265,8 @@ export default function NouveauBon() {
             )
           }
         />
+
+        <SelecteurVisibilite valeur={visibilite} onChange={setVisibilite} />
 
         {erreur && <p className="champ erreur">{erreur}</p>}
 

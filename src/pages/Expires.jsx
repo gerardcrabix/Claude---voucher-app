@@ -3,14 +3,16 @@ import { Link } from 'react-router-dom';
 import { listerBonsEnrichis, terminerBon } from '../db/repository.js';
 import { centimesVersAffichage } from '../utils/money.js';
 import { formatDateAffichage } from '../utils/dates.js';
+import { useIdentity } from '../identity/IdentityContext.jsx';
 
 // Section distincte pour les bons expirés (section 5) : exclus des pastilles
 // et de l'alerte anti-oubli, mais toujours visibles ici et archivables.
 export default function Expires() {
+  const { identite } = useIdentity();
   const [bons, setBons] = useState(null);
 
   async function charger() {
-    const tous = await listerBonsEnrichis();
+    const tous = await listerBonsEnrichis(identite);
     setBons(tous.filter((b) => b.statut === 'expire'));
   }
 

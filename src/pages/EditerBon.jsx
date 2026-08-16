@@ -4,6 +4,7 @@ import { listerEnseignes, modifierBon, obtenirBon } from '../db/repository.js';
 import { eurosVersCentimes, centimesVersAffichage } from '../utils/money.js';
 import { useIdentity } from '../identity/IdentityContext.jsx';
 import ChampsBon from '../components/ChampsBon.jsx';
+import SelecteurVisibilite from '../components/SelecteurVisibilite.jsx';
 
 // Édition complète d'un bon existant : toutes les infos saisies à la
 // création (enseigne comprise) restent modifiables ensuite. Les mouvements
@@ -22,12 +23,13 @@ export default function EditerBon() {
   const [dateExpiration, setDateExpiration] = useState('');
   const [code, setCode] = useState('');
   const [pin, setPin] = useState('');
+  const [visibilite, setVisibilite] = useState('partage');
   const [erreur, setErreur] = useState(null);
   const [enCours, setEnCours] = useState(false);
 
   useEffect(() => {
     listerEnseignes().then(setEnseignes);
-    obtenirBon(id).then((bon) => {
+    obtenirBon(id, identite).then((bon) => {
       if (!bon) return;
       setEnseigneNom(bon.enseigne?.nom ?? '');
       setMontant((bon.montantInitial / 100).toString().replace('.', ','));
@@ -35,9 +37,10 @@ export default function EditerBon() {
       setDateExpiration(bon.dateExpiration ?? '');
       setCode(bon.code ?? '');
       setPin(bon.pin ?? '');
+      setVisibilite(bon.visibilite || 'partage');
       setCharge(true);
     });
-  }, [id]);
+  }, [id, identite]);
 
   async function valider(e) {
     e.preventDefault();
@@ -67,6 +70,7 @@ export default function EditerBon() {
         dateExpiration: dateExpiration || null,
         code,
         pin,
+        visibilite,
         auteur: identite,
       });
       navigate(`/bon/${id}`);
@@ -105,6 +109,8 @@ export default function EditerBon() {
           pin={pin}
           setPin={setPin}
         />
+
+        <SelecteurVisibilite valeur={visibilite} onChange={setVisibilite} />
 
         {erreur && <p className="champ erreur">{erreur}</p>}
 

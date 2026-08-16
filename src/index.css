@@ -371,7 +371,14 @@ p {
   color: var(--couleur-texte-discret);
 }
 
-.carte-bon .code {
+.carte-bon .codes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.carte-bon .code,
+.carte-bon .pin {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   background: var(--couleur-fond);
   border-radius: 8px;
@@ -379,6 +386,10 @@ p {
   font-size: 0.95rem;
   letter-spacing: 0.5px;
   width: fit-content;
+}
+
+.carte-bon .pin {
+  color: var(--couleur-texte-discret);
 }
 
 .carte-bon .expiration {

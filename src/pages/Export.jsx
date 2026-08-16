@@ -4,12 +4,16 @@ import { exporterSauvegarde, restaurerSauvegarde } from '../db/sauvegarde.js';
 import { construireClasseurXlsx } from '../export/xlsxEcrivain.js';
 import { declencherTelechargement } from '../utils/telecharger.js';
 import { formatDateAffichage } from '../utils/dates.js';
+import { useIdentity } from '../identity/IdentityContext.jsx';
 
 // Écran Export : sauvegarde/restauration complète des données locales (voir
-// db/sauvegarde.js — cet appareil ne synchronise rien ailleurs), et export
-// Excel ciblé (une enseigne, une plage de dates d'expiration) pour les bons
-// encore actifs.
+// db/sauvegarde.js — cet appareil ne synchronise rien ailleurs, et la
+// sauvegarde couvre tout sans filtrage par visibilité, contrairement à
+// l'export Excel ci-dessous), et export Excel ciblé (une enseigne, une
+// plage de dates d'expiration) pour les bons encore actifs et visibles par
+// l'identité courante.
 export default function Export() {
+  const { identite } = useIdentity();
   const [enseignes, setEnseignes] = useState([]);
   const [bons, setBons] = useState([]);
   const [enseigneId, setEnseigneId] = useState(null);
@@ -24,8 +28,8 @@ export default function Export() {
 
   useEffect(() => {
     listerEnseignes().then(setEnseignes);
-    listerBonsEnrichis().then(setBons);
-  }, []);
+    listerBonsEnrichis(identite).then(setBons);
+  }, [identite]);
 
   const bonsCorrespondants = useMemo(() => {
     if (!enseigneId || !dateDebut || !dateFin) return [];
