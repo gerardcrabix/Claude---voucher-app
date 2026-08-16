@@ -1,0 +1,702 @@
+/* Design sobre et lisible, pensé pour un usage "je regarde vite" sur iPhone.
+   Cibles tactiles >= 44pt, texte lisible sans zoom (section 7). */
+
+:root {
+  --couleur-fond: #f6f5f2;
+  --couleur-carte: #ffffff;
+  --couleur-texte: #1c1c1e;
+  --couleur-texte-discret: #6b6b70;
+  --couleur-bordure: #e4e2dd;
+  --couleur-accent: #0f766e;
+  --couleur-accent-fonce: #0b5c56;
+  --couleur-accent-clair: #e4f4f2;
+  --couleur-alerte: #b45309;
+  --couleur-alerte-fond: #fff4e5;
+  --couleur-danger: #b91c1c;
+  --couleur-danger-fond: #fdecec;
+  --rayon: 14px;
+  --ombre: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06);
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--couleur-fond);
+  color: var(--couleur-texte);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 17px;
+  line-height: 1.4;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+h1 {
+  font-size: 1.5rem;
+  margin: 0 0 8px;
+}
+
+h2 {
+  font-size: 1.15rem;
+  margin: 0 0 8px;
+}
+
+p {
+  margin: 0 0 8px;
+}
+
+.texte-discret {
+  color: var(--couleur-texte-discret);
+  font-size: 0.95rem;
+}
+
+.app-shell {
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 84px; /* place pour la nav du bas */
+}
+
+.entete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 16px 8px;
+}
+
+.entete h1 {
+  margin: 0;
+}
+
+.bouton-identite {
+  border: none;
+  background: var(--couleur-accent-clair);
+  color: var(--couleur-accent-fonce);
+  border-radius: 999px;
+  padding: 8px 14px;
+  min-height: 44px;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.boutons-enseignes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.bouton-enseigne {
+  border: 1px solid var(--couleur-bordure);
+  background: var(--couleur-carte);
+  color: inherit;
+  border-radius: 999px;
+  padding: 6px 12px;
+  min-height: 40px;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.bouton-enseigne.active {
+  border-color: var(--couleur-accent);
+  background: var(--couleur-accent-clair);
+  color: var(--couleur-accent-fonce);
+}
+
+.contenu {
+  flex: 1;
+  padding: 0 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ecran-centre {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: stretch;
+  gap: 16px;
+  padding: 24px;
+  text-align: center;
+}
+
+.choix-identite {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ---- Boutons ---- */
+
+.bouton-grand {
+  min-height: 48px;
+  border-radius: var(--rayon);
+  border: none;
+  padding: 12px 18px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.bouton-principal {
+  background: var(--couleur-accent);
+  color: white;
+}
+
+.bouton-principal:active {
+  background: var(--couleur-accent-fonce);
+}
+
+.bouton-secondaire {
+  background: var(--couleur-carte);
+  color: var(--couleur-texte);
+  border: 1px solid var(--couleur-bordure);
+}
+
+.bouton-discret {
+  background: transparent;
+  color: var(--couleur-accent-fonce);
+  border: none;
+  min-height: 44px;
+  font-weight: 600;
+}
+
+.bouton-danger {
+  background: var(--couleur-danger-fond);
+  color: var(--couleur-danger);
+  border: 1px solid #f3caca;
+}
+
+.bouton-pleine-largeur {
+  width: 100%;
+}
+
+.bouton-flottant {
+  position: fixed;
+  right: 16px;
+  bottom: 88px;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: var(--couleur-accent);
+  color: white;
+  border: none;
+  font-size: 2rem;
+  line-height: 1;
+  box-shadow: var(--ombre);
+  max-width: calc(480px - 32px);
+  margin: 0 auto;
+  /* .bouton-flottant est un <a> (lien de routage) : sans ça, le "+" ne se
+     centre ni verticalement ni horizontalement dans le rond. */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  box-sizing: border-box;
+  padding-bottom: 4px; /* optique : le glyphe "+" paraît décalé sans ça */
+}
+
+.bouton-flottant-conteneur {
+  position: fixed;
+  bottom: 88px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.bouton-flottant-conteneur .bouton-flottant {
+  position: static;
+  pointer-events: auto;
+}
+
+/* ---- Bandeau d'alerte expiration ---- */
+
+.bandeau-alerte {
+  background: var(--couleur-alerte-fond);
+  border: 1px solid #f3d9ae;
+  color: var(--couleur-alerte);
+  border-radius: var(--rayon);
+  padding: 12px 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ---- Pastilles enseignes ---- */
+
+.pastilles {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.pastille {
+  flex: 0 0 auto;
+  background: var(--couleur-carte);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon);
+  padding: 10px 14px;
+  min-height: 48px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  cursor: pointer;
+}
+
+.pastille.active {
+  border-color: var(--couleur-accent);
+  background: var(--couleur-accent-clair);
+}
+
+.pastille .nom {
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.pastille .logo-enseigne {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+}
+
+.pastille .detail {
+  font-size: 0.85rem;
+  color: var(--couleur-texte-discret);
+}
+
+/* ---- Liste de bons ---- */
+
+.liste-bons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.carte-bon {
+  background: var(--couleur-carte);
+  border-radius: var(--rayon);
+  box-shadow: var(--ombre);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.carte-bon .ligne-haut {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.carte-bon .enseigne {
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+.carte-bon .solde {
+  font-weight: 800;
+  font-size: 1.2rem;
+  color: var(--couleur-accent-fonce);
+}
+
+.montant-carte {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+}
+
+.montant-initial-carte {
+  font-size: 0.78rem;
+  color: var(--couleur-texte-discret);
+  font-weight: 500;
+}
+
+/* ---- Montants initial / restant sur la fiche détail ---- */
+
+.montants-bon {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+}
+
+.montant-bloc {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.libelle-montant {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--couleur-texte-discret);
+}
+
+.montant-bloc .solde {
+  font-size: 1.8rem;
+}
+
+.montant-bloc.secondaire .montant-secondaire {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--couleur-texte-discret);
+}
+
+.carte-bon .codes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.carte-bon .code,
+.carte-bon .pin {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  background: var(--couleur-fond);
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 0.95rem;
+  letter-spacing: 0.5px;
+  width: fit-content;
+}
+
+.image-code-barres {
+  align-self: center;
+  max-width: 240px;
+  width: 100%;
+  /* Marge blanche autour de l'image (zone de silence) : les lecteurs de
+     code-barres/QR en ont besoin pour scanner correctement, et le bitmap
+     généré n'en inclut pas lui-même. */
+  padding: 12px;
+  background: #ffffff;
+  border-radius: 8px;
+  border: 1px solid var(--couleur-bordure);
+  image-rendering: pixelated;
+}
+
+.carte-bon .pin {
+  color: var(--couleur-texte-discret);
+}
+
+.carte-bon .expiration {
+  font-size: 0.9rem;
+}
+
+.expiration.urgent {
+  color: var(--couleur-alerte);
+  font-weight: 700;
+}
+
+.carte-bon .actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.carte-bon .actions .bouton-grand {
+  flex: 1;
+}
+
+/* ---- Formulaires ---- */
+
+.champ {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.champ label {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.champ input,
+.champ select,
+.champ textarea {
+  min-height: 48px;
+  border-radius: 10px;
+  border: 1px solid var(--couleur-bordure);
+  padding: 10px 12px;
+  background: var(--couleur-carte);
+  width: 100%;
+}
+
+.champ .aide {
+  font-size: 0.82rem;
+  color: var(--couleur-texte-discret);
+}
+
+.champ .erreur {
+  font-size: 0.85rem;
+  color: var(--couleur-danger);
+  font-weight: 600;
+}
+
+/* ---- Alerte anti-oubli ---- */
+
+.alerte-anti-oubli {
+  border-radius: var(--rayon);
+  padding: 16px;
+  font-size: 1rem;
+  border: 2px solid var(--couleur-alerte);
+  background: var(--couleur-alerte-fond);
+  color: #7a3e00;
+}
+
+.alerte-anti-oubli.forte {
+  border-color: var(--couleur-danger);
+  background: var(--couleur-danger-fond);
+  color: var(--couleur-danger);
+}
+
+.alerte-anti-oubli h2 {
+  margin: 0 0 6px;
+  font-size: 1.05rem;
+}
+
+.alerte-anti-oubli .montant {
+  font-size: 1.4rem;
+  font-weight: 800;
+}
+
+.alerte-ok {
+  border-radius: var(--rayon);
+  padding: 14px 16px;
+  background: var(--couleur-accent-clair);
+  color: var(--couleur-accent-fonce);
+  font-weight: 600;
+}
+
+/* ---- Modale ---- */
+
+.fond-modale {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: flex-end;
+  z-index: 50;
+}
+
+.modale {
+  background: var(--couleur-carte);
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  border-radius: 20px 20px 0 0;
+  padding: 20px;
+  padding-bottom: max(20px, env(safe-area-inset-bottom));
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+/* ---- Navigation basse ---- */
+
+.nav-basse {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--couleur-carte);
+  border-top: 1px solid var(--couleur-bordure);
+  display: flex;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.nav-basse a {
+  flex: 1;
+  text-align: center;
+  padding: 10px 4px 8px;
+  min-height: 48px;
+  text-decoration: none;
+  color: var(--couleur-texte-discret);
+  font-size: 0.8rem;
+  font-weight: 600;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.nav-basse a.active {
+  color: var(--couleur-accent-fonce);
+}
+
+.nav-basse .icone {
+  font-size: 1.3rem;
+}
+
+/* ---- Divers ---- */
+
+.vide {
+  text-align: center;
+  color: var(--couleur-texte-discret);
+  padding: 40px 16px;
+}
+
+.section-titre {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.pilule-statut {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--couleur-fond);
+  color: var(--couleur-texte-discret);
+}
+
+.liste-simple {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ligne-enseigne {
+  background: var(--couleur-carte);
+  border-radius: var(--rayon);
+  box-shadow: var(--ombre);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+a.ligne-enseigne {
+  text-decoration: none;
+  color: inherit;
+}
+
+.ligne-enseigne-entete {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo-enseigne {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  object-fit: contain;
+  background: var(--couleur-fond);
+  flex: 0 0 auto;
+}
+
+.apercu-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.apercu-logo img {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  object-fit: contain;
+  background: var(--couleur-fond);
+  border: 1px solid var(--couleur-bordure);
+}
+
+/* ---- Calendrier ---- */
+
+.mois-calendrier {
+  background: var(--couleur-carte);
+  border-radius: var(--rayon);
+  box-shadow: var(--ombre);
+  padding: 14px;
+}
+
+.mois-calendrier h2 {
+  text-transform: capitalize;
+}
+
+/* Une ligne = un bon : date, enseigne, montant. Pas de grille de tous les
+   jours du mois — seuls les jours avec un bon à échéance comptent. */
+.ligne-calendrier-bon {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 4px;
+  border-bottom: 1px solid var(--couleur-bordure);
+  text-decoration: none;
+  color: inherit;
+}
+
+.ligne-calendrier-bon:last-child {
+  border-bottom: none;
+}
+
+.jour-calendrier-liste {
+  flex: 0 0 auto;
+  min-width: 32px;
+  text-align: center;
+  font-weight: 800;
+  font-size: 1.1rem;
+  color: var(--couleur-accent-fonce);
+}
+
+.enseigne-calendrier-liste {
+  flex: 1;
+  font-weight: 600;
+}
+
+.solde-calendrier-liste {
+  flex: 0 0 auto;
+  font-weight: 700;
+}
+
+.solde-calendrier-liste.urgent {
+  color: var(--couleur-alerte);
+}
+
+/* ---- Diagnostic (écran temporaire) ---- */
+
+.bloc-diagnostic {
+  background: #1c1c1e;
+  color: #d6d6d6;
+  border-radius: var(--rayon);
+  padding: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-x: auto;
+  max-height: 50vh;
+  overflow-y: auto;
+}
