@@ -49,7 +49,7 @@ export default function Expires() {
               </span>
               <div className="actions">
                 <button className="bouton-grand bouton-secondaire" onClick={() => surTerminer(bon.id)}>
-                  Terminé
+                  Clôturer
                 </button>
               </div>
             </div>

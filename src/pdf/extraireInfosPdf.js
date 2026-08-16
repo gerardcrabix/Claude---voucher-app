@@ -23,12 +23,21 @@ import { ajouterEntree } from '../diagnostic/journal.js';
 // GARDE PAS la promesse rejetée en cache — sinon tous les essais suivants
 // dans la même session échoueraient silencieusement sans jamais retenter le
 // téléchargement.
+//
+// Build "legacy" plutôt que le build standard : c'est la variante que
+// Mozilla publie spécifiquement pour les navigateurs qui ne supportent pas
+// toute la syntaxe JS la plus récente utilisée par le build standard — avec
+// plus de code de compatibilité embarqué. Après plusieurs échecs
+// "undefined is not a function" sur un vrai iPhone (build standard,
+// jusqu'à l'intérieur de getTextContent elle-même), c'est le bon levier :
+// pas une nouvelle rustine ponctuelle, un changement de variante de la
+// librairie pensée pour ce cas précis.
 let pdfjsLibPromise = null;
 function chargerPdfjs() {
   if (!pdfjsLibPromise) {
     pdfjsLibPromise = Promise.all([
-      import('pdfjs-dist'),
-      import('pdfjs-dist/build/pdf.worker.min.mjs?url'),
+      import('pdfjs-dist/legacy/build/pdf.mjs'),
+      import('pdfjs-dist/legacy/build/pdf.worker.min.mjs?url'),
     ]).then(([lib, worker]) => {
       lib.GlobalWorkerOptions.workerSrc = worker.default;
       return lib;

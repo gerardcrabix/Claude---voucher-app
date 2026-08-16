@@ -51,6 +51,20 @@ export function dateInputAujourdhui() {
   return aujourdhuiParis();
 }
 
+// Date d'expiration par défaut proposée à la création d'un bon : un an
+// après la date d'achat, moins un jour (ex. acheté le 16/08/2026=> expire
+// par défaut le 15/08/2027). Reste modifiable dans le formulaire.
+export function dateExpirationParDefaut(dateAchat = aujourdhuiParis()) {
+  const [annee, mois, jour] = dateAchat.split('-').map(Number);
+  const date = new Date(annee, mois - 1, jour);
+  date.setFullYear(date.getFullYear() + 1);
+  date.setDate(date.getDate() - 1);
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 const NOMS_MOIS = [
   'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
   'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre',

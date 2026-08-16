@@ -19,7 +19,7 @@ const LIBELLES_STATUT = {
   actif: 'Actif',
   expire: 'Expiré',
   solde: 'Solde épuisé',
-  termine: 'Terminé',
+  termine: 'Clôturé',
 };
 
 export default function BonDetail() {
@@ -207,11 +207,16 @@ export default function BonDetail() {
       </div>
 
       <div className="actions">
+        <button className="bouton-grand bouton-secondaire" onClick={() => navigate('/')}>
+          Sortir
+        </button>
         {bon.statut !== 'termine' && (
           <button className="bouton-grand bouton-secondaire" onClick={surTerminer}>
-            Marquer comme terminé
+            Clôturer le bon
           </button>
         )}
+      </div>
+      <div className="actions">
         <button className="bouton-grand bouton-danger" onClick={() => setModale('supprimer')}>
           Supprimer définitivement
         </button>

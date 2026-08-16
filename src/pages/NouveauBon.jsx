@@ -8,7 +8,7 @@ import {
   trouverEnseigneParNom,
 } from '../db/repository.js';
 import { eurosVersCentimes } from '../utils/money.js';
-import { dateInputAujourdhui } from '../utils/dates.js';
+import { dateExpirationParDefaut, dateInputAujourdhui } from '../utils/dates.js';
 import { useIdentity } from '../identity/IdentityContext.jsx';
 import { extraireInfosPdf } from '../pdf/extraireInfosPdf.js';
 import AlerteAntiOubli from '../components/AlerteAntiOubli.jsx';
@@ -26,7 +26,13 @@ export default function NouveauBon() {
   const [soldeInfo, setSoldeInfo] = useState(null);
   const [montant, setMontant] = useState('');
   const [dateAchat, setDateAchat] = useState(dateInputAujourdhui());
-  const [dateExpiration, setDateExpiration] = useState('');
+  // Par défaut, un an après la date d'achat moins un jour — modifiable à
+  // tout moment. `dateExpirationTouchee` distingue "encore la valeur par
+  // défaut" (recalculée si la date d'achat change) de "choisie" (par
+  // l'utilisateur ou trouvée dans un PDF), qu'on ne doit plus jamais
+  // écraser automatiquement.
+  const [dateExpiration, setDateExpiration] = useState(() => dateExpirationParDefaut(dateInputAujourdhui()));
+  const [dateExpirationTouchee, setDateExpirationTouchee] = useState(false);
   const [code, setCode] = useState('');
   const [pin, setPin] = useState('');
   const [pdf, setPdf] = useState(null);
@@ -39,6 +45,16 @@ export default function NouveauBon() {
   useEffect(() => {
     listerEnseignes().then(setEnseignes);
   }, []);
+
+  // Recalcule la date d'expiration par défaut si la date d'achat change —
+  // mais seulement tant qu'elle n'a pas été choisie explicitement (par
+  // l'utilisateur ou trouvée dans un PDF), pour ne jamais écraser un choix
+  // volontaire.
+  useEffect(() => {
+    if (!dateExpirationTouchee) {
+      setDateExpiration(dateExpirationParDefaut(dateAchat));
+    }
+  }, [dateAchat, dateExpirationTouchee]);
 
   useEffect(() => {
     const nom = enseigneNom.trim();
@@ -95,8 +111,9 @@ export default function NouveauBon() {
       setPin(infos.pin);
       trouveQuelqueChose = true;
     }
-    if (infos.dateExpiration && dateExpiration.trim() === '') {
+    if (infos.dateExpiration && !dateExpirationTouchee) {
       setDateExpiration(infos.dateExpiration);
+      setDateExpirationTouchee(true);
       trouveQuelqueChose = true;
     }
     setEtatExtraction(trouveQuelqueChose ? 'trouve' : 'rien-trouve');
@@ -193,7 +210,10 @@ export default function NouveauBon() {
           dateAchat={dateAchat}
           setDateAchat={setDateAchat}
           dateExpiration={dateExpiration}
-          setDateExpiration={setDateExpiration}
+          setDateExpiration={(v) => {
+            setDateExpirationTouchee(true);
+            setDateExpiration(v);
+          }}
           code={code}
           setCode={setCode}
           pin={pin}
