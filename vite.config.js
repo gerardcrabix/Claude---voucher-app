@@ -4,6 +4,9 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
 export default defineConfig({
+  // Chemins relatifs : l'app est servie depuis un sous-dossier sur GitHub
+  // Pages (https://<user>.github.io/<repo>/), pas à la racine du domaine.
+  base: './',
   plugins: [
     react(),
     VitePWA({
