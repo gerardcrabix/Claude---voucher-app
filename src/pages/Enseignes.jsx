@@ -1,20 +1,26 @@
 import { useEffect, useState } from 'react';
 import {
   definirLienEnseigne,
+  definirLogoEnseigne,
   EnseigneUtiliseeError,
   listerEnseignes,
   renommerEnseigne,
   supprimerEnseigne,
 } from '../db/repository.js';
+import { useIdentity } from '../identity/IdentityContext.jsx';
 
 // Gestion des enseignes : renommer, lien de vérification de solde en ligne,
-// suppression (section 6.11). La création se fait toujours à la volée
-// depuis le formulaire de nouveau bon.
+// logo (réservé à CM), suppression (section 6.11). La création se fait
+// toujours à la volée depuis le formulaire de nouveau bon.
 export default function Enseignes() {
+  const { identite } = useIdentity();
+  const peutGererLogo = identite === 'moi';
+
   const [enseignes, setEnseignes] = useState(null);
   const [enEdition, setEnEdition] = useState(null); // id en cours d'édition
   const [nomEdite, setNomEdite] = useState('');
   const [lienEdite, setLienEdite] = useState('');
+  const [logoEdite, setLogoEdite] = useState('');
   const [erreur, setErreur] = useState(null);
 
   async function charger() {
@@ -29,12 +35,14 @@ export default function Enseignes() {
     setEnEdition(e.id);
     setNomEdite(e.nom);
     setLienEdite(e.lienVerification ?? '');
+    setLogoEdite(e.logoUrl ?? '');
     setErreur(null);
   }
 
   async function enregistrerEdition(id) {
     await renommerEnseigne(id, nomEdite);
     await definirLienEnseigne(id, lienEdite);
+    if (peutGererLogo) await definirLogoEnseigne(id, logoEdite);
     setEnEdition(null);
     await charger();
   }
@@ -90,6 +98,43 @@ export default function Enseignes() {
                       onChange={(ev) => setLienEdite(ev.target.value)}
                     />
                   </div>
+                  {peutGererLogo && (
+                    <div className="champ">
+                      <label htmlFor={`logo-${e.id}`}>Logo (optionnel)</label>
+                      <a
+                        className="bouton-grand bouton-secondaire"
+                        href={`https://www.google.com/search?tbm=isch&q=${encodeURIComponent(`${nomEdite || e.nom} logo`)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Chercher une image sur Google Images ↗
+                      </a>
+                      <span className="aide">
+                        Ouvre la recherche d'images dans un nouvel onglet. Sur l'image choisie : clic droit
+                        (ou appui long) → « Copier l'adresse de l'image », puis colle le lien ci-dessous.
+                      </span>
+                      <input
+                        id={`logo-${e.id}`}
+                        type="url"
+                        placeholder="https://…"
+                        value={logoEdite}
+                        onChange={(ev) => setLogoEdite(ev.target.value)}
+                        style={{ marginTop: 8 }}
+                      />
+                      {logoEdite && (
+                        <div className="apercu-logo">
+                          <img src={logoEdite} alt="" onError={(ev) => { ev.currentTarget.style.display = 'none'; }} />
+                          <button
+                            type="button"
+                            className="bouton-discret"
+                            onClick={() => setLogoEdite('')}
+                          >
+                            Retirer le logo
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <div className="actions">
                     <button className="bouton-grand bouton-secondaire" onClick={() => setEnEdition(null)}>
                       Annuler
@@ -104,7 +149,17 @@ export default function Enseignes() {
                 </>
               ) : (
                 <>
-                  <span className="enseigne">{e.nom}</span>
+                  <div className="ligne-enseigne-entete">
+                    {e.logoUrl && (
+                      <img
+                        className="logo-enseigne"
+                        src={e.logoUrl}
+                        alt=""
+                        onError={(ev) => { ev.currentTarget.style.display = 'none'; }}
+                      />
+                    )}
+                    <span className="enseigne">{e.nom}</span>
+                  </div>
                   {e.lienVerification && (
                     <a href={e.lienVerification} target="_blank" rel="noreferrer" className="texte-discret">
                       Vérifier le solde en ligne ↗

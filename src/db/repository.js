@@ -52,6 +52,7 @@ export async function trouverOuCreerEnseigne(nom, auteur) {
     nom: nom.trim(),
     nomNormalise: normaliserNom(nom),
     lienVerification: null,
+    logoUrl: null,
     createdAt: maintenant(),
     createdBy: auteur,
   };
@@ -73,6 +74,17 @@ export async function definirLienEnseigne(id, lien) {
   const enseigne = await db.get('enseignes', id);
   if (!enseigne) throw new Error('Enseigne introuvable');
   enseigne.lienVerification = lien ? lien.trim() : null;
+  await db.put('enseignes', enseigne);
+}
+
+// Logo d'enseigne : réservé à CM (voir Enseignes.jsx), simple URL d'image
+// choisie manuellement (pas d'upload de fichier — MVP sans stockage
+// serveur) plutôt qu'une vraie recherche d'image intégrée.
+export async function definirLogoEnseigne(id, urlLogo) {
+  const db = await getDb();
+  const enseigne = await db.get('enseignes', id);
+  if (!enseigne) throw new Error('Enseigne introuvable');
+  enseigne.logoUrl = urlLogo ? urlLogo.trim() : null;
   await db.put('enseignes', enseigne);
 }
 

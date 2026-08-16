@@ -255,6 +255,12 @@ p {
   font-size: 0.95rem;
 }
 
+.pastille .logo-enseigne {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+}
+
 .pastille .detail {
   font-size: 0.85rem;
   color: var(--couleur-texte-discret);
@@ -544,6 +550,37 @@ p {
 a.ligne-enseigne {
   text-decoration: none;
   color: inherit;
+}
+
+.ligne-enseigne-entete {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo-enseigne {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  object-fit: contain;
+  background: var(--couleur-fond);
+  flex: 0 0 auto;
+}
+
+.apercu-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.apercu-logo img {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  object-fit: contain;
+  background: var(--couleur-fond);
+  border: 1px solid var(--couleur-bordure);
 }
 
 /* ---- Calendrier ---- */
