@@ -86,13 +86,14 @@ export async function supprimerEnseigne(id) {
 // ---- Lecture enrichie des bons --------------------------------------------
 
 async function enrichirBon(db, bon) {
-  const [mouvements, overrides] = await Promise.all([
+  const [mouvements, overrides, modifications] = await Promise.all([
     db.getAllFromIndex('mouvements', 'parBon', bon.id),
     db.getAllFromIndex('overrides', 'parBon', bon.id),
+    db.getAllFromIndex('modifications', 'parBon', bon.id),
   ]);
   const solde = calculerSolde(bon, mouvements, overrides);
   const statut = calculerStatut(bon, solde);
-  return { ...bon, solde, statut, mouvements, overrides };
+  return { ...bon, solde, statut, mouvements, overrides, modifications };
 }
 
 export async function listerBonsEnrichis() {
@@ -188,7 +189,10 @@ export async function creerBon({
 
 // Édition complète d'un bon déjà créé (toutes les infos saisies à la
 // création restent modifiables ensuite, y compris l'enseigne). Ne touche
-// jamais aux mouvements ni aux corrections de solde déjà enregistrés.
+// jamais aux mouvements ni aux corrections de solde déjà enregistrés — sauf
+// le montant initial, dont chaque changement est tracé dans le store
+// "modifications" (date, auteur, ancien montant, nouveau montant, solde
+// résultant), pour qu'un changement de montant ne passe jamais inaperçu.
 export async function modifierBon({
   id,
   enseigneNom,
@@ -200,11 +204,17 @@ export async function modifierBon({
   pin,
   auteur,
 }) {
+  const enseigne = await trouverOuCreerEnseigne(enseigneNom, auteur);
+
   const db = await getDb();
-  const bon = await db.get('bons', id);
+  const tx = db.transaction(['bons', 'mouvements', 'overrides', 'modifications'], 'readwrite');
+  const bonsStore = tx.objectStore('bons');
+  const modificationsStore = tx.objectStore('modifications');
+
+  const bon = await bonsStore.get(id);
   if (!bon) throw new Error('Bon introuvable');
 
-  const enseigne = await trouverOuCreerEnseigne(enseigneNom, auteur);
+  const montantAvant = bon.montantInitial;
 
   const bonModifie = {
     ...bon,
@@ -216,7 +226,26 @@ export async function modifierBon({
     code: code.trim(),
     pin: pin?.trim() || null,
   };
-  await db.put('bons', bonModifie);
+  await bonsStore.put(bonModifie);
+
+  if (montantAvant !== montantInitial) {
+    const [mouvements, overrides] = await Promise.all([
+      tx.objectStore('mouvements').index('parBon').getAll(id),
+      tx.objectStore('overrides').index('parBon').getAll(id),
+    ]);
+    const soldeApres = calculerSolde(bonModifie, mouvements, overrides);
+    await modificationsStore.add({
+      id: nouvelId(),
+      bonId: id,
+      auteur,
+      createdAt: maintenant(),
+      montantAvant,
+      montantApres: montantInitial,
+      soldeApres,
+    });
+  }
+
+  await tx.done;
   return bonModifie;
 }
 
@@ -285,11 +314,13 @@ export async function reactiverBon(id) {
 
 export async function supprimerBonDefinitivement(id) {
   const db = await getDb();
-  const tx = db.transaction(['bons', 'mouvements', 'overrides', 'pdfs'], 'readwrite');
+  const tx = db.transaction(['bons', 'mouvements', 'overrides', 'modifications', 'pdfs'], 'readwrite');
   const mouvements = await tx.objectStore('mouvements').index('parBon').getAll(id);
   const overrides = await tx.objectStore('overrides').index('parBon').getAll(id);
+  const modifications = await tx.objectStore('modifications').index('parBon').getAll(id);
   await Promise.all(mouvements.map((m) => tx.objectStore('mouvements').delete(m.id)));
   await Promise.all(overrides.map((o) => tx.objectStore('overrides').delete(o.id)));
+  await Promise.all(modifications.map((m) => tx.objectStore('modifications').delete(m.id)));
   await tx.objectStore('pdfs').delete(id).catch(() => {});
   await tx.objectStore('bons').delete(id);
   await tx.done;

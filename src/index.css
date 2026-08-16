@@ -281,7 +281,7 @@ p {
 .carte-bon .ligne-haut {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: flex-start;
   gap: 8px;
 }
 
@@ -294,6 +294,51 @@ p {
   font-weight: 800;
   font-size: 1.2rem;
   color: var(--couleur-accent-fonce);
+}
+
+.montant-carte {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+}
+
+.montant-initial-carte {
+  font-size: 0.78rem;
+  color: var(--couleur-texte-discret);
+  font-weight: 500;
+}
+
+/* ---- Montants initial / restant sur la fiche détail ---- */
+
+.montants-bon {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+}
+
+.montant-bloc {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.libelle-montant {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--couleur-texte-discret);
+}
+
+.montant-bloc .solde {
+  font-size: 1.8rem;
+}
+
+.montant-bloc.secondaire .montant-secondaire {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--couleur-texte-discret);
 }
 
 .carte-bon .code {

@@ -14,7 +14,14 @@ export default function BonCard({ bon, onDepenser }) {
     <div className="carte-bon" onClick={() => navigate(`/bon/${bon.id}`)}>
       <div className="ligne-haut">
         <span className="enseigne">{bon.enseigne?.nom ?? 'Enseigne'}</span>
-        <span className="solde">{centimesVersAffichage(bon.solde)}</span>
+        <span className="montant-carte">
+          <span className="solde">{centimesVersAffichage(bon.solde)}</span>
+          {bon.solde !== bon.montantInitial && (
+            <span className="montant-initial-carte">
+              sur {centimesVersAffichage(bon.montantInitial)}
+            </span>
+          )}
+        </span>
       </div>
       {bon.code && <span className="code">{bon.code}</span>}
       <span className={`expiration ${urgent ? 'urgent' : ''}`}>

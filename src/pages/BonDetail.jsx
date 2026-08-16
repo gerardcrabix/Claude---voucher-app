@@ -84,6 +84,7 @@ export default function BonDetail() {
   const historique = [
     ...bon.mouvements.map((m) => ({ type: 'depense', ...m })),
     ...bon.overrides.map((o) => ({ type: 'correction', ...o })),
+    ...bon.modifications.map((m) => ({ type: 'modification-montant', ...m })),
   ].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
 
   return (
@@ -98,7 +99,16 @@ export default function BonDetail() {
           <span className="enseigne">{bon.enseigne?.nom}</span>
           <span className="pilule-statut">{LIBELLES_STATUT[bon.statut]}</span>
         </div>
-        <p className="solde" style={{ fontSize: '2rem' }}>{centimesVersAffichage(bon.solde)}</p>
+        <div className="montants-bon">
+          <div className="montant-bloc">
+            <span className="libelle-montant">Restant</span>
+            <span className="solde">{centimesVersAffichage(bon.solde)}</span>
+          </div>
+          <div className="montant-bloc secondaire">
+            <span className="libelle-montant">Initial</span>
+            <span className="montant-secondaire">{centimesVersAffichage(bon.montantInitial)}</span>
+          </div>
+        </div>
         {bon.code && <span className="code" style={{ fontSize: '1.1rem' }}>{bon.code}</span>}
         {bon.pin && (
           <span className="texte-discret">PIN / code confidentiel : <strong>{bon.pin}</strong></span>
@@ -108,11 +118,7 @@ export default function BonDetail() {
             ? `${expire ? 'Expiré le' : "À utiliser avant le"} ${formatDateAffichage(bon.dateExpiration)}`
             : "Pas de date d'expiration"}
         </span>
-        <p className="texte-discret">
-          Acheté le {formatDateAffichage(bon.dateAchat)}
-          {' · montant initial '}
-          {centimesVersAffichage(bon.montantInitial)}
-        </p>
+        <p className="texte-discret">Acheté le {formatDateAffichage(bon.dateAchat)}</p>
         <p className="texte-discret">Créé par {libelleIdentite(bon.createdBy)}</p>
       </div>
 
@@ -164,7 +170,7 @@ export default function BonDetail() {
           <div className="liste-simple">
             {historique.map((h) => (
               <div key={h.id} className="ligne-enseigne">
-                {h.type === 'depense' ? (
+                {h.type === 'depense' && (
                   <>
                     <strong>-{centimesVersAffichage(h.montant)}</strong>
                     <span className="texte-discret">
@@ -172,12 +178,25 @@ export default function BonDetail() {
                       {h.note && ` · ${h.note}`}
                     </span>
                   </>
-                ) : (
+                )}
+                {h.type === 'correction' && (
                   <>
                     <strong>Solde corrigé à {centimesVersAffichage(h.nouveauSolde)}</strong>
                     <span className="texte-discret">
                       {libelleIdentite(h.auteur)}
                       {h.motif && ` · ${h.motif}`}
+                    </span>
+                  </>
+                )}
+                {h.type === 'modification-montant' && (
+                  <>
+                    <strong>
+                      Montant initial modifié : {centimesVersAffichage(h.montantAvant)} → {centimesVersAffichage(h.montantApres)}
+                    </strong>
+                    <span className="texte-discret">
+                      {formatDateAffichage(h.createdAt.slice(0, 10))} · {libelleIdentite(h.auteur)}
+                      {' · restant après changement : '}
+                      {centimesVersAffichage(h.soldeApres)}
                     </span>
                   </>
                 )}

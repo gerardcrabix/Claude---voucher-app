@@ -12,14 +12,17 @@
 import { chercherCode, chercherDateExpiration, chercherPin, construireLignes } from './analyserLignesBon.js';
 import { ajouterEntree } from '../diagnostic/journal.js';
 
-// pdfjs-dist pèse plus d'1 Mo (worker compris) : chargé à la demande
+// pdfjs-dist + son worker pèsent ~1,7 Mo au total : chargés à la demande
 // seulement quand un PDF est effectivement choisi, pas au démarrage de
-// l'app ni dans le bundle principal.
+// l'app ni dans le bundle principal. Une fois récupérés une première fois
+// avec succès, le service worker les garde en cache définitivement (voir
+// vite.config.js) — donc ce coût réseau n'est payé qu'une seule fois par
+// appareil, dans l'idéal en Wi-Fi.
 //
-// Important : si ce chargement échoue une fois (ex. coupure réseau le temps
-// de récupérer le fichier du worker, ~1,2 Mo), on NE GARDE PAS la promesse
-// rejetée en cache — sinon tous les essais suivants dans la même session
-// échoueraient silencieusement sans jamais retenter le téléchargement.
+// Important : si ce chargement échoue une fois (ex. coupure réseau), on NE
+// GARDE PAS la promesse rejetée en cache — sinon tous les essais suivants
+// dans la même session échoueraient silencieusement sans jamais retenter le
+// téléchargement.
 let pdfjsLibPromise = null;
 function chargerPdfjs() {
   if (!pdfjsLibPromise) {
@@ -37,10 +40,38 @@ function chargerPdfjs() {
   return pdfjsLibPromise;
 }
 
+// pdf.worker.min.mjs (~1,2 Mo, la grosse partie du poids) n'est en fait
+// récupéré que plus tard, à l'intérieur de getDocument() ci-dessous — pas
+// dans chargerPdfjs(). C'est cette étape qui échoue en premier sur un
+// réseau faible, avec le message WebKit "Importing a module script failed."
+function estErreurReseau(e) {
+  const m = (e?.message || String(e)).toLowerCase();
+  return /module script failed|failed to fetch|load failed|network|econnreset|err_network|err_internet/.test(m);
+}
+
+async function avecReessaiReseau(fn, tentatives = 3, delaiMs = 700) {
+  let derniereErreur;
+  for (let i = 0; i < tentatives; i++) {
+    try {
+      return await fn();
+    } catch (e) {
+      derniereErreur = e;
+      if (!estErreurReseau(e) || i === tentatives - 1) throw e;
+      ajouterEntree(
+        'extraction-pdf',
+        `Échec réseau (tentative ${i + 1}/${tentatives}), nouvel essai dans ${delaiMs}ms : ${e?.message}`,
+        null
+      );
+      await new Promise((r) => setTimeout(r, delaiMs));
+    }
+  }
+  throw derniereErreur;
+}
+
 async function extraireLignes(file) {
   const pdfjsLib = await chargerPdfjs();
   const buffer = await file.arrayBuffer();
-  const doc = await pdfjsLib.getDocument({ data: buffer }).promise;
+  const doc = await avecReessaiReseau(() => pdfjsLib.getDocument({ data: buffer }).promise);
   let lignes = [];
   for (let i = 1; i <= doc.numPages; i++) {
     const page = await doc.getPage(i);
@@ -50,17 +81,17 @@ async function extraireLignes(file) {
   return lignes;
 }
 
-// Renvoie { code, pin, dateExpiration, texteBrutDisponible, erreur }.
-// `erreur` n'est renseigné que si une vraie panne technique a empêché la
-// lecture (réseau, PDF corrompu…) — à distinguer de "le PDF a bien été lu
-// mais ne contient rien d'exploitable", pour pouvoir diagnostiquer ce qui se
-// passe réellement plutôt que d'afficher le même message générique dans
-// tous les cas.
+// Renvoie { code, pin, dateExpiration, texteBrutDisponible, erreur,
+// erreurReseau }. `erreur` n'est renseigné que si une vraie panne technique
+// a empêché la lecture (réseau, PDF corrompu…) — à distinguer de "le PDF a
+// bien été lu mais ne contient rien d'exploitable". `erreurReseau` permet
+// d'afficher un message adapté ("mauvais signal, réessayez") plutôt qu'un
+// message technique générique.
 export async function extraireInfosPdf(file) {
   try {
-    const lignes = await extraireLignes(file);
+    const lignes = await avecReessaiReseau(() => extraireLignes(file));
     if (lignes.length === 0) {
-      return { code: null, pin: null, dateExpiration: null, texteBrutDisponible: false, erreur: null };
+      return { code: null, pin: null, dateExpiration: null, texteBrutDisponible: false, erreur: null, erreurReseau: false };
     }
     return {
       code: chercherCode(lignes),
@@ -68,9 +99,11 @@ export async function extraireInfosPdf(file) {
       dateExpiration: chercherDateExpiration(lignes),
       texteBrutDisponible: true,
       erreur: null,
+      erreurReseau: false,
     };
   } catch (e) {
     const message = e?.message || String(e);
+    const reseau = estErreurReseau(e);
     ajouterEntree('extraction-pdf', `Échec lecture PDF "${file?.name ?? '?'}" : ${message}`, e?.stack);
     return {
       code: null,
@@ -78,6 +111,7 @@ export async function extraireInfosPdf(file) {
       dateExpiration: null,
       texteBrutDisponible: false,
       erreur: message,
+      erreurReseau: reseau,
     };
   }
 }
