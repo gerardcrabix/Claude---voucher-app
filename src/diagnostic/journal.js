@@ -68,6 +68,11 @@ export function installerCaptureGlobale() {
 
 export function infosEnvironnement() {
   return {
+    // Horodatage du build en cours d'exécution (voir vite.config.js) —
+    // permet de vérifier en un coup d'œil qu'un appareil tourne bien sur la
+    // dernière version déployée plutôt que sur un ancien service worker
+    // resté en cache, source récurrente de confusion sur ce projet.
+    versionBuild: typeof __VERSION_BUILD__ !== 'undefined' ? __VERSION_BUILD__ : 'inconnue',
     userAgent: navigator.userAgent,
     plateforme: navigator.platform,
     enLigne: navigator.onLine,

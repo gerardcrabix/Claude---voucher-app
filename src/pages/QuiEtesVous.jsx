@@ -76,6 +76,12 @@ export default function QuiEtesVous() {
           </button>
         ))}
       </div>
+      {/* Repère de version, pour vérifier facilement qu'un appareil tourne
+          bien sur le dernier déploiement plutôt que sur une version restée
+          en cache (voir le commentaire dans vite.config.js). */}
+      <p className="texte-discret" style={{ fontSize: '0.72rem', marginTop: 24 }}>
+        Version : {typeof __VERSION_BUILD__ !== 'undefined' ? __VERSION_BUILD__ : 'inconnue'}
+      </p>
     </div>
   );
 }

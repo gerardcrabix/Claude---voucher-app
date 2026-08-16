@@ -6,12 +6,14 @@ import {
   listerEnseignes,
   renommerEnseigne,
   supprimerEnseigne,
+  trouverOuCreerEnseigne,
 } from '../db/repository.js';
 import { useIdentity } from '../identity/IdentityContext.jsx';
 
-// Gestion des enseignes : renommer, lien de vérification de solde en ligne,
-// logo (réservé à CM), suppression (section 6.11). La création se fait
-// toujours à la volée depuis le formulaire de nouveau bon.
+// Gestion des enseignes : création directe (pour pouvoir lui donner un logo
+// avant même le premier bon), renommer, lien de vérification de solde en
+// ligne, logo (réservé à CM), suppression (section 6.11). Une enseigne se
+// crée aussi toujours à la volée depuis le formulaire de nouveau bon.
 export default function Enseignes() {
   const { identite } = useIdentity();
   const peutGererLogo = identite === 'moi';
@@ -22,6 +24,8 @@ export default function Enseignes() {
   const [lienEdite, setLienEdite] = useState('');
   const [logoEdite, setLogoEdite] = useState('');
   const [erreur, setErreur] = useState(null);
+  const [creationOuverte, setCreationOuverte] = useState(false);
+  const [nomCreation, setNomCreation] = useState('');
 
   async function charger() {
     setEnseignes(await listerEnseignes());
@@ -37,6 +41,17 @@ export default function Enseignes() {
     setLienEdite(e.lienVerification ?? '');
     setLogoEdite(e.logoUrl ?? '');
     setErreur(null);
+  }
+
+  async function creerEnseigne(ev) {
+    ev.preventDefault();
+    const nom = nomCreation.trim();
+    if (nom === '') return;
+    const enseigne = await trouverOuCreerEnseigne(nom, identite);
+    setNomCreation('');
+    setCreationOuverte(false);
+    await charger();
+    commencerEdition(enseigne); // ouvre directement l'édition (dont le logo)
   }
 
   async function enregistrerEdition(id) {
@@ -68,10 +83,46 @@ export default function Enseignes() {
     <div className="contenu">
       <h1>Enseignes</h1>
       {erreur && <p className="champ erreur">{erreur}</p>}
+
+      {creationOuverte ? (
+        <form onSubmit={creerEnseigne} className="champ">
+          <label htmlFor="nouvelle-enseigne">Nom de l'enseigne</label>
+          <input
+            id="nouvelle-enseigne"
+            type="text"
+            autoFocus
+            value={nomCreation}
+            onChange={(ev) => setNomCreation(ev.target.value)}
+          />
+          <div className="actions">
+            <button
+              type="button"
+              className="bouton-grand bouton-secondaire"
+              onClick={() => { setCreationOuverte(false); setNomCreation(''); }}
+            >
+              Annuler
+            </button>
+            <button type="submit" className="bouton-grand bouton-principal">
+              Créer
+            </button>
+          </div>
+        </form>
+      ) : (
+        <button
+          className="bouton-grand bouton-secondaire"
+          style={{ marginBottom: 16 }}
+          onClick={() => setCreationOuverte(true)}
+        >
+          + Nouvelle enseigne
+        </button>
+      )}
+
       {enseignes.length === 0 ? (
         <div className="vide">
           <p>Aucune enseigne pour l'instant.</p>
-          <p className="texte-discret">Elles se créent automatiquement à la création d'un bon.</p>
+          <p className="texte-discret">
+            Elles se créent automatiquement à la création d'un bon, ou directement ci-dessus.
+          </p>
         </div>
       ) : (
         <div className="liste-simple">

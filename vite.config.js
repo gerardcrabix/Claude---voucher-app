@@ -7,6 +7,13 @@ export default defineConfig({
   // Chemins relatifs : l'app est servie depuis un sous-dossier sur GitHub
   // Pages (https://<user>.github.io/<repo>/), pas à la racine du domaine.
   base: './',
+  // Horodatage figé au moment du build, exposé dans l'écran Diagnostic
+  // (voir journal.js) : sert à vérifier qu'un appareil donné tourne bien
+  // sur la dernière version déployée, plutôt que de deviner face à un
+  // service worker resté en cache.
+  define: {
+    __VERSION_BUILD__: JSON.stringify(new Date().toISOString()),
+  },
   plugins: [
     react(),
     VitePWA({
