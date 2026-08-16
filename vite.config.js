@@ -38,8 +38,8 @@ export default defineConfig({
         navigateFallback: 'index.html',
       },
       manifest: {
-        name: 'Bons — suivi des bons d’achat',
-        short_name: 'Bons',
+        name: 'CAJAC-Voucher — suivi des bons d’achat',
+        short_name: 'CAJAC-Voucher',
         description: "Suivi partagé des bons d'achat, avec alerte anti-oubli.",
         start_url: '.',
         display: 'standalone',

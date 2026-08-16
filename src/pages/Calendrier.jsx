@@ -10,6 +10,7 @@ import { centimesVersAffichage } from '../utils/money.js';
 // quarantaine de jours sans bon, seuls les jours avec un bon comptent.
 export default function Calendrier() {
   const [bons, setBons] = useState(null);
+  const [nombreMois, setNombreMois] = useState(3);
 
   useEffect(() => {
     listerBonsEnrichis().then((tous) =>
@@ -21,12 +22,24 @@ export default function Calendrier() {
     return <div className="contenu"><p className="texte-discret">Chargement…</p></div>;
   }
 
-  const mois = prochainsMois(3);
+  const mois = prochainsMois(nombreMois);
 
   return (
     <div className="contenu">
       <h1>Calendrier</h1>
-      <p className="texte-discret">Bons actifs à consommer, 3 prochains mois.</p>
+      <div className="boutons-enseignes">
+        {[3, 6].map((n) => (
+          <button
+            key={n}
+            type="button"
+            className={`bouton-enseigne ${nombreMois === n ? 'active' : ''}`}
+            onClick={() => setNombreMois(n)}
+          >
+            {n} mois
+          </button>
+        ))}
+      </div>
+      <p className="texte-discret">Bons actifs à consommer, {nombreMois} prochains mois.</p>
 
       {mois.map(({ annee, moisIndex }) => {
         const prefixe = `${annee}-${String(moisIndex + 1).padStart(2, '0')}`;

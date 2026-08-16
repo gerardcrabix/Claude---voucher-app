@@ -10,12 +10,13 @@ import Expires from './pages/Expires.jsx';
 import Calendrier from './pages/Calendrier.jsx';
 import Diagnostic from './pages/Diagnostic.jsx';
 import Admin from './pages/Admin.jsx';
+import Export from './pages/Export.jsx';
 
 function Entete() {
   const { identite, changerDePersonne } = useIdentity();
   return (
     <div className="entete">
-      <h1>Bons</h1>
+      <h1>CAJAC-Voucher</h1>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         {identite === 'moi' && (
           <Link to="/admin" className="bouton-discret">Admin</Link>
@@ -47,6 +48,10 @@ function NavBasse() {
         <span className="icone">🏷️</span>
         Enseignes
       </NavLink>
+      <NavLink to="/export" className={({ isActive }) => (isActive ? 'active' : '')}>
+        <span className="icone">📤</span>
+        Export
+      </NavLink>
     </nav>
   );
 }
@@ -65,6 +70,7 @@ function AppConnectee() {
         <Route path="/calendrier" element={<Calendrier />} />
         <Route path="/diagnostic" element={<Diagnostic />} />
         <Route path="/admin" element={<Admin />} />
+        <Route path="/export" element={<Export />} />
       </Routes>
       <NavBasse />
     </div>
