@@ -559,80 +559,43 @@ a.ligne-enseigne {
   text-transform: capitalize;
 }
 
-.grille-jours-semaine,
-.ligne-calendrier {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 4px;
+/* Une ligne = un bon : date, enseigne, montant. Pas de grille de tous les
+   jours du mois — seuls les jours avec un bon à échéance comptent. */
+.ligne-calendrier-bon {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 4px;
+  border-bottom: 1px solid var(--couleur-bordure);
+  text-decoration: none;
+  color: inherit;
 }
 
-.jour-semaine {
+.ligne-calendrier-bon:last-child {
+  border-bottom: none;
+}
+
+.jour-calendrier-liste {
+  flex: 0 0 auto;
+  min-width: 32px;
   text-align: center;
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--couleur-texte-discret);
-  padding: 4px 0;
-}
-
-.jour-calendrier {
-  position: relative;
-  aspect-ratio: 1;
-  min-height: 40px;
-  border: none;
-  background: transparent;
-  border-radius: 10px;
-  font-size: 0.85rem;
-  color: var(--couleur-texte-discret);
-  opacity: 0.5;
-}
-
-.jour-calendrier.hors-mois {
-  opacity: 0.2;
-}
-
-/* Le cœur de l'écran Calendrier : seuls les jours avec un bon à échéance
-   doivent sauter aux yeux, tout le reste s'efface en arrière-plan. */
-.jour-calendrier.avec-bon {
-  opacity: 1;
-  background: var(--couleur-accent-clair);
+  font-weight: 800;
+  font-size: 1.1rem;
   color: var(--couleur-accent-fonce);
-  font-weight: 800;
-  font-size: 0.95rem;
-  box-shadow: var(--ombre);
 }
 
-.jour-calendrier.urgent {
-  background: var(--couleur-alerte-fond);
+.enseigne-calendrier-liste {
+  flex: 1;
+  font-weight: 600;
+}
+
+.solde-calendrier-liste {
+  flex: 0 0 auto;
+  font-weight: 700;
+}
+
+.solde-calendrier-liste.urgent {
   color: var(--couleur-alerte);
-}
-
-.jour-calendrier.aujourdhui {
-  opacity: 1;
-  font-weight: 800;
-  box-shadow: inset 0 0 0 2px var(--couleur-accent);
-}
-
-.jour-calendrier.aujourdhui.avec-bon {
-  box-shadow: var(--ombre), inset 0 0 0 2px var(--couleur-accent);
-}
-
-.jour-calendrier.selectionne {
-  box-shadow: inset 0 0 0 2px currentColor;
-}
-
-.jour-calendrier:disabled {
-  cursor: default;
-}
-
-.pastille-jour {
-  position: absolute;
-  bottom: 4px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: currentColor;
 }
 
 /* ---- Diagnostic (écran temporaire) ---- */

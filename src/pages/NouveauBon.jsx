@@ -11,6 +11,7 @@ import { eurosVersCentimes } from '../utils/money.js';
 import { dateExpirationParDefaut, dateInputAujourdhui } from '../utils/dates.js';
 import { useIdentity } from '../identity/IdentityContext.jsx';
 import { extraireInfosPdf } from '../pdf/extraireInfosPdf.js';
+import { ajouterEntree } from '../diagnostic/journal.js';
 import AlerteAntiOubli from '../components/AlerteAntiOubli.jsx';
 import ChampsBon from '../components/ChampsBon.jsx';
 
@@ -138,8 +139,9 @@ export default function NouveauBon() {
     }
 
     setEnCours(true);
+    let bon;
     try {
-      const { bon } = await creerBon({
+      ({ bon } = await creerBon({
         enseigneNom: enseigneNom.trim(),
         montantInitial: montantCentimes,
         dateAchat,
@@ -147,15 +149,25 @@ export default function NouveauBon() {
         code,
         pin,
         auteur: identite,
-      });
-      if (pdf) {
-        await enregistrerPdf(bon.id, pdf);
-      }
-      navigate(`/bon/${bon.id}`);
+      }));
     } catch {
       setErreur('Une erreur est survenue, réessayez.');
       setEnCours(false);
+      return;
     }
+
+    // Le bon existe déjà à ce stade : un souci pour attacher le PDF ne doit
+    // jamais empêcher d'arriver sur sa fiche (sinon il faut le retrouver
+    // dans la liste pour ajouter le PDF à la main, alors qu'il n'y a aucune
+    // bonne raison que ça échoue) — on journalise et on continue.
+    if (pdf) {
+      try {
+        await enregistrerPdf(bon.id, pdf);
+      } catch (e) {
+        ajouterEntree('nouveau-bon', `Échec attachement du PDF au bon créé : ${e?.message}`, e?.stack);
+      }
+    }
+    navigate(`/bon/${bon.id}`);
   }
 
   return (

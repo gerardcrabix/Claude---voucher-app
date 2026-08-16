@@ -11,6 +11,16 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      // On enregistre le service worker nous-mêmes depuis main.jsx (voir
+      // ce fichier) plutôt que de laisser le petit script auto-injecté par
+      // défaut : celui-ci se contente d'enregistrer le SW sans jamais
+      // recharger la page quand une nouvelle version prend le relais. Un
+      // onglet resté ouvert entre deux déploiements continue alors à
+      // tourner sur d'anciens fichiers (constaté sur le terrain avec un
+      // ancien build de la lib PDF encore actif après plusieurs mises à
+      // jour). `virtual:pwa-register` avec `immediate: true` recharge
+      // automatiquement dès qu'une mise à jour est détectée.
+      injectRegister: null,
       // Consultation seule hors ligne (section 4) : on ne fait que mettre en
       // cache le "shell" applicatif (JS/CSS/HTML/icônes). Les données elles-
       // mêmes vivent déjà dans IndexedDB, qui fonctionne nativement hors
