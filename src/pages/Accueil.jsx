@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { listerBonsEnrichis, listerPastillesEnseignes } from '../db/repository.js';
 import { estSousLeSeuil } from '../utils/dates.js';
+import { ajouterEntree } from '../diagnostic/journal.js';
 import BonCard from '../components/BonCard.jsx';
 import EnseignePill from '../components/EnseignePill.jsx';
 import BandeauExpiration from '../components/BandeauExpiration.jsx';
@@ -14,19 +15,45 @@ export default function Accueil() {
   const [pastilles, setPastilles] = useState([]);
   const [enseigneFiltre, setEnseigneFiltre] = useState(null);
   const [bonADepenser, setBonADepenser] = useState(null);
+  const [erreurChargement, setErreurChargement] = useState(null);
 
   async function charger() {
-    const [tousBons, toutesPastilles] = await Promise.all([
-      listerBonsEnrichis(),
-      listerPastillesEnseignes(),
-    ]);
-    setBons(tousBons);
-    setPastilles(toutesPastilles);
+    setErreurChargement(null);
+    try {
+      const [tousBons, toutesPastilles] = await Promise.all([
+        listerBonsEnrichis(),
+        listerPastillesEnseignes(),
+      ]);
+      setBons(tousBons);
+      setPastilles(toutesPastilles);
+    } catch (e) {
+      // Sans ce filet, une erreur ici laisse l'écran bloqué sur "Chargement…"
+      // indéfiniment, sans aucun indice pour comprendre pourquoi.
+      ajouterEntree('accueil', `Échec du chargement des bons : ${e?.message}`, e?.stack);
+      setErreurChargement(e?.message || String(e));
+    }
   }
 
   useEffect(() => {
     charger();
   }, []);
+
+  if (erreurChargement) {
+    return (
+      <div className="contenu">
+        <div className="vide">
+          <p>Le chargement a échoué.</p>
+          <code style={{ fontSize: '0.8rem' }}>{erreurChargement}</code>
+          <div className="actions" style={{ justifyContent: 'center', marginTop: 12 }}>
+            <button className="bouton-grand bouton-principal" onClick={charger}>
+              Réessayer
+            </button>
+            <Link to="/diagnostic" className="bouton-discret">Voir le journal</Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (bons === null) {
     return <div className="contenu"><p className="texte-discret">Chargement…</p></div>;

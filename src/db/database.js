@@ -11,6 +11,7 @@
 //   modifications -> journal des changements du montant initial d'un bon
 //   pdfs          -> objets du bucket de stockage (ici : Blob en IndexedDB)
 import { openDB } from 'idb';
+import { ajouterEntree } from '../diagnostic/journal.js';
 
 const DB_NAME = 'bons-app';
 const DB_VERSION = 2;
@@ -20,27 +21,43 @@ let dbPromise = null;
 export function getDb() {
   if (!dbPromise) {
     dbPromise = openDB(DB_NAME, DB_VERSION, {
-      upgrade(db, oldVersion) {
-        if (oldVersion < 1) {
+      upgrade(db) {
+        // db.objectStoreNames.contains(...) en garde : sur un état déjà
+        // partiellement migré (ou un bug de navigateur), on ne veut jamais
+        // planter toute l'ouverture de la base pour un store qui existe
+        // déjà — juste passer à la suite.
+        if (!db.objectStoreNames.contains('enseignes')) {
           const enseignes = db.createObjectStore('enseignes', { keyPath: 'id' });
           enseignes.createIndex('parNom', 'nomNormalise', { unique: false });
-
+        }
+        if (!db.objectStoreNames.contains('bons')) {
           const bons = db.createObjectStore('bons', { keyPath: 'id' });
           bons.createIndex('parEnseigne', 'enseigneId', { unique: false });
-
+        }
+        if (!db.objectStoreNames.contains('mouvements')) {
           const mouvements = db.createObjectStore('mouvements', { keyPath: 'id' });
           mouvements.createIndex('parBon', 'bonId', { unique: false });
-
+        }
+        if (!db.objectStoreNames.contains('overrides')) {
           const overrides = db.createObjectStore('overrides', { keyPath: 'id' });
           overrides.createIndex('parBon', 'bonId', { unique: false });
-
+        }
+        if (!db.objectStoreNames.contains('pdfs')) {
           db.createObjectStore('pdfs', { keyPath: 'bonId' });
         }
-        if (oldVersion < 2) {
+        if (!db.objectStoreNames.contains('modifications')) {
           const modifications = db.createObjectStore('modifications', { keyPath: 'id' });
           modifications.createIndex('parBon', 'bonId', { unique: false });
         }
       },
+    });
+
+    // Comme pour le chargement de pdfjs-dist : si l'ouverture échoue, on ne
+    // garde SURTOUT PAS la promesse rejetée en cache, sinon l'app resterait
+    // cassée pour le reste de la session sans jamais retenter.
+    dbPromise.catch((e) => {
+      ajouterEntree('base-de-donnees', `Échec ouverture IndexedDB : ${e?.message}`, e?.stack);
+      dbPromise = null;
     });
   }
   return dbPromise;
