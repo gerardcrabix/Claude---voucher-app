@@ -164,6 +164,7 @@ export async function creerBon({
   dateAchat,
   dateExpiration,
   code,
+  pin,
   auteur,
 }) {
   const enseigne = await trouverOuCreerEnseigne(enseigneNom, auteur);
@@ -176,12 +177,47 @@ export async function creerBon({
     dateAchat,
     dateExpiration: dateExpiration || null,
     code: code.trim(),
+    pin: pin?.trim() || null,
     archived: false,
     createdAt: maintenant(),
     createdBy: auteur,
   };
   await db.add('bons', bon);
   return { bon, enseigne };
+}
+
+// Édition complète d'un bon déjà créé (toutes les infos saisies à la
+// création restent modifiables ensuite, y compris l'enseigne). Ne touche
+// jamais aux mouvements ni aux corrections de solde déjà enregistrés.
+export async function modifierBon({
+  id,
+  enseigneNom,
+  montantInitial,
+  tauxReduction,
+  dateAchat,
+  dateExpiration,
+  code,
+  pin,
+  auteur,
+}) {
+  const db = await getDb();
+  const bon = await db.get('bons', id);
+  if (!bon) throw new Error('Bon introuvable');
+
+  const enseigne = await trouverOuCreerEnseigne(enseigneNom, auteur);
+
+  const bonModifie = {
+    ...bon,
+    enseigneId: enseigne.id,
+    montantInitial,
+    tauxReduction: tauxReduction ?? null,
+    dateAchat,
+    dateExpiration: dateExpiration || null,
+    code: code.trim(),
+    pin: pin?.trim() || null,
+  };
+  await db.put('bons', bonModifie);
+  return bonModifie;
 }
 
 export async function enregistrerMouvement({ bonId, montant, date, note, auteur }) {

@@ -88,7 +88,10 @@ export default function BonDetail() {
 
   return (
     <div className="contenu">
-      <Link to="/" className="bouton-discret">← Retour</Link>
+      <div className="section-titre">
+        <Link to="/" className="bouton-discret">← Retour</Link>
+        <Link to={`/bon/${id}/modifier`} className="bouton-discret">Modifier</Link>
+      </div>
 
       <div className="carte-bon">
         <div className="ligne-haut">
@@ -97,6 +100,9 @@ export default function BonDetail() {
         </div>
         <p className="solde" style={{ fontSize: '2rem' }}>{centimesVersAffichage(bon.solde)}</p>
         {bon.code && <span className="code" style={{ fontSize: '1.1rem' }}>{bon.code}</span>}
+        {bon.pin && (
+          <span className="texte-discret">PIN / code confidentiel : <strong>{bon.pin}</strong></span>
+        )}
         <span className={`expiration ${urgent ? 'urgent' : ''}`}>
           {bon.dateExpiration
             ? `${expire ? 'Expiré le' : "À utiliser avant le"} ${formatDateAffichage(bon.dateExpiration)}`
@@ -185,7 +191,7 @@ export default function BonDetail() {
       <div className="actions">
         {bon.statut !== 'termine' && (
           <button className="bouton-grand bouton-secondaire" onClick={surTerminer}>
-            Terminé
+            Marquer comme terminé
           </button>
         )}
         <button className="bouton-grand bouton-danger" onClick={() => setModale('supprimer')}>

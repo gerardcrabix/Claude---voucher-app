@@ -4,8 +4,10 @@ import QuiEtesVous from './pages/QuiEtesVous.jsx';
 import Accueil from './pages/Accueil.jsx';
 import NouveauBon from './pages/NouveauBon.jsx';
 import BonDetail from './pages/BonDetail.jsx';
+import EditerBon from './pages/EditerBon.jsx';
 import Enseignes from './pages/Enseignes.jsx';
 import Expires from './pages/Expires.jsx';
+import Calendrier from './pages/Calendrier.jsx';
 
 function Entete() {
   const { identite, changerDePersonne } = useIdentity();
@@ -25,6 +27,10 @@ function NavBasse() {
       <NavLink to="/" end className={({ isActive }) => (isActive ? 'active' : '')}>
         <span className="icone">🏠</span>
         Accueil
+      </NavLink>
+      <NavLink to="/calendrier" className={({ isActive }) => (isActive ? 'active' : '')}>
+        <span className="icone">📅</span>
+        Calendrier
       </NavLink>
       <NavLink to="/expires" className={({ isActive }) => (isActive ? 'active' : '')}>
         <span className="icone">⏰</span>
@@ -46,8 +52,10 @@ function AppConnectee() {
         <Route path="/" element={<Accueil />} />
         <Route path="/nouveau" element={<NouveauBon />} />
         <Route path="/bon/:id" element={<BonDetail />} />
+        <Route path="/bon/:id/modifier" element={<EditerBon />} />
         <Route path="/enseignes" element={<Enseignes />} />
         <Route path="/expires" element={<Expires />} />
+        <Route path="/calendrier" element={<Calendrier />} />
       </Routes>
       <NavBasse />
     </div>

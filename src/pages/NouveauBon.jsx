@@ -10,7 +10,9 @@ import {
 import { eurosVersCentimes } from '../utils/money.js';
 import { dateInputAujourdhui } from '../utils/dates.js';
 import { useIdentity } from '../identity/IdentityContext.jsx';
+import { extraireInfosPdf } from '../pdf/extraireInfosPdf.js';
 import AlerteAntiOubli from '../components/AlerteAntiOubli.jsx';
+import ChampsBon from '../components/ChampsBon.jsx';
 
 // Création d'un bon. L'alerte anti-oubli (section 4) se déclenche dès que
 // l'enseigne est reconnue, avant toute validation du formulaire — c'est la
@@ -27,7 +29,9 @@ export default function NouveauBon() {
   const [dateAchat, setDateAchat] = useState(dateInputAujourdhui());
   const [dateExpiration, setDateExpiration] = useState('');
   const [code, setCode] = useState('');
+  const [pin, setPin] = useState('');
   const [pdf, setPdf] = useState(null);
+  const [etatExtraction, setEtatExtraction] = useState(null); // null | 'en-cours' | 'trouve' | 'rien-trouve'
   const [erreur, setErreur] = useState(null);
   const [enCours, setEnCours] = useState(false);
 
@@ -57,6 +61,35 @@ export default function NouveauBon() {
     };
   }, [enseigneNom]);
 
+  // Dès qu'un PDF est choisi : on essaie d'en extraire le code, le PIN et la
+  // date d'expiration, pour éviter la ressaisie. Ça ne marche que si le PDF
+  // contient du texte (pas une photo) — sinon les champs restent vides et se
+  // remplissent à la main comme d'habitude.
+  async function surChoixPdf(e) {
+    const fichier = e.target.files?.[0];
+    setPdf(fichier ?? null);
+    if (!fichier) {
+      setEtatExtraction(null);
+      return;
+    }
+    setEtatExtraction('en-cours');
+    const infos = await extraireInfosPdf(fichier);
+    let trouveQuelqueChose = false;
+    if (infos.code && code.trim() === '') {
+      setCode(infos.code);
+      trouveQuelqueChose = true;
+    }
+    if (infos.pin && pin.trim() === '') {
+      setPin(infos.pin);
+      trouveQuelqueChose = true;
+    }
+    if (infos.dateExpiration && dateExpiration.trim() === '') {
+      setDateExpiration(infos.dateExpiration);
+      trouveQuelqueChose = true;
+    }
+    setEtatExtraction(trouveQuelqueChose ? 'trouve' : 'rien-trouve');
+  }
+
   async function valider(e) {
     e.preventDefault();
     setErreur(null);
@@ -84,6 +117,7 @@ export default function NouveauBon() {
         dateAchat,
         dateExpiration: dateExpiration || null,
         code,
+        pin,
         auteur: identite,
       });
       if (pdf) {
@@ -101,95 +135,42 @@ export default function NouveauBon() {
       <h1>Nouveau bon</h1>
       <form onSubmit={valider}>
         <div className="champ">
-          <label htmlFor="enseigne">Enseigne</label>
-          <input
-            id="enseigne"
-            list="liste-enseignes"
-            type="text"
-            placeholder="ex. Boursobank"
-            value={enseigneNom}
-            onChange={(e) => setEnseigneNom(e.target.value)}
-            autoFocus
-          />
-          <datalist id="liste-enseignes">
-            {enseignes.map((e) => (
-              <option key={e.id} value={e.nom} />
-            ))}
-          </datalist>
-          <span className="aide">Nouvelle enseigne ? Tapez simplement son nom.</span>
-        </div>
-
-        {soldeInfo && (
-          <div className="champ">
-            <AlerteAntiOubli enseigneNom={enseigneNom.trim()} soldeInfo={soldeInfo} />
-          </div>
-        )}
-
-        <div className="champ">
-          <label htmlFor="montant">Montant du bon</label>
-          <input
-            id="montant"
-            type="text"
-            inputMode="decimal"
-            placeholder="0,00"
-            value={montant}
-            onChange={(e) => setMontant(e.target.value)}
-          />
-        </div>
-
-        <div className="champ">
-          <label htmlFor="taux">Taux de réduction (optionnel)</label>
-          <input
-            id="taux"
-            type="text"
-            inputMode="decimal"
-            placeholder="ex. 10"
-            value={taux}
-            onChange={(e) => setTaux(e.target.value)}
-          />
-          <span className="aide">En pourcentage, pour information seulement.</span>
-        </div>
-
-        <div className="champ">
-          <label htmlFor="date-achat">Date d'achat</label>
-          <input
-            id="date-achat"
-            type="date"
-            value={dateAchat}
-            onChange={(e) => setDateAchat(e.target.value)}
-          />
-        </div>
-
-        <div className="champ">
-          <label htmlFor="date-expiration">Date d'expiration (optionnel)</label>
-          <input
-            id="date-expiration"
-            type="date"
-            value={dateExpiration}
-            onChange={(e) => setDateExpiration(e.target.value)}
-          />
-        </div>
-
-        <div className="champ">
-          <label htmlFor="code">Code du bon</label>
-          <input
-            id="code"
-            type="text"
-            placeholder="ex. ABCD-1234"
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-          />
-        </div>
-
-        <div className="champ">
           <label htmlFor="pdf">PDF du bon (optionnel)</label>
-          <input
-            id="pdf"
-            type="file"
-            accept="application/pdf"
-            onChange={(e) => setPdf(e.target.files?.[0] ?? null)}
-          />
+          <input id="pdf" type="file" accept="application/pdf" onChange={surChoixPdf} />
+          <span className="aide">
+            {etatExtraction === 'en-cours' && 'Lecture du PDF…'}
+            {etatExtraction === 'trouve' &&
+              'Code / PIN / date repérés dans le PDF et préremplis ci-dessous — vérifiez avant de valider.'}
+            {etatExtraction === 'rien-trouve' &&
+              "Rien d'exploitable trouvé dans ce PDF, complétez à la main ci-dessous."}
+            {etatExtraction === null && 'Si vous en avez un, ça préremplit le code, le PIN et la date.'}
+          </span>
         </div>
+
+        <ChampsBon
+          enseignes={enseignes}
+          enseigneNom={enseigneNom}
+          setEnseigneNom={setEnseigneNom}
+          montant={montant}
+          setMontant={setMontant}
+          taux={taux}
+          setTaux={setTaux}
+          dateAchat={dateAchat}
+          setDateAchat={setDateAchat}
+          dateExpiration={dateExpiration}
+          setDateExpiration={setDateExpiration}
+          code={code}
+          setCode={setCode}
+          pin={pin}
+          setPin={setPin}
+          apresEnseigne={
+            soldeInfo && (
+              <div className="champ">
+                <AlerteAntiOubli enseigneNom={enseigneNom.trim()} soldeInfo={soldeInfo} />
+              </div>
+            )
+          }
+        />
 
         {erreur && <p className="champ erreur">{erreur}</p>}
 

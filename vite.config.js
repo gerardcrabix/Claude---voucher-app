@@ -18,6 +18,10 @@ export default defineConfig({
       // elles à ce stade (MVP local, sans backend).
       workbox: {
         globPatterns: ['**/*.{js,css,html,png,svg,ico}'],
+        // La lib d'extraction PDF (~430 Ko) n'est chargée qu'à la demande,
+        // au moment où on choisit un PDF — pas besoin de l'embarquer dans le
+        // cache hors-ligne dès l'installation.
+        globIgnores: ['**/pdf-*.js', '**/pdf.worker.min-*'],
         navigateFallback: 'index.html',
       },
       manifest: {

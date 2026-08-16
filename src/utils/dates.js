@@ -50,3 +50,77 @@ export function cleTriUrgence(dateExpiration) {
 export function dateInputAujourdhui() {
   return aujourdhuiParis();
 }
+
+const NOMS_MOIS = [
+  'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+  'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre',
+];
+
+export function nomMois(annee, moisIndex) {
+  return `${NOMS_MOIS[moisIndex]} ${annee}`;
+}
+
+function joursDansLeMois(annee, moisIndex) {
+  return new Date(annee, moisIndex + 1, 0).getDate();
+}
+
+// Jour de la semaine du 1er du mois, 0 = lundi ... 6 = dimanche (convention
+// française), pour aligner la grille du calendrier.
+function premierJourSemaine(annee, moisIndex) {
+  const jsDay = new Date(`${annee}-${String(moisIndex + 1).padStart(2, '0')}-01T00:00:00`).getDay();
+  return (jsDay + 6) % 7;
+}
+
+function versDateStr(annee, moisIndex, jour) {
+  const m = String(moisIndex + 1).padStart(2, '0');
+  const j = String(jour).padStart(2, '0');
+  return `${annee}-${m}-${j}`;
+}
+
+// Grille de semaines pour un mois donné : chaque semaine est un tableau de 7
+// { date, dansLeMois } — les jours des mois voisins servent juste à
+// compléter la grille visuellement.
+export function grilleDuMois(annee, moisIndex) {
+  const total = joursDansLeMois(annee, moisIndex);
+  const decalage = premierJourSemaine(annee, moisIndex);
+
+  const moisPrecedent = moisIndex === 0 ? 11 : moisIndex - 1;
+  const anneePrecedente = moisIndex === 0 ? annee - 1 : annee;
+  const totalPrecedent = joursDansLeMois(anneePrecedente, moisPrecedent);
+
+  const moisSuivant = moisIndex === 11 ? 0 : moisIndex + 1;
+  const anneeSuivante = moisIndex === 11 ? annee + 1 : annee;
+
+  const jours = [];
+  for (let i = 0; i < decalage; i++) {
+    const jour = totalPrecedent - decalage + i + 1;
+    jours.push({ date: versDateStr(anneePrecedente, moisPrecedent, jour), dansLeMois: false });
+  }
+  for (let jour = 1; jour <= total; jour++) {
+    jours.push({ date: versDateStr(annee, moisIndex, jour), dansLeMois: true });
+  }
+  while (jours.length % 7 !== 0) {
+    const jour = jours.length - decalage - total + 1;
+    jours.push({ date: versDateStr(anneeSuivante, moisSuivant, jour), dansLeMois: false });
+  }
+
+  const semaines = [];
+  for (let i = 0; i < jours.length; i += 7) {
+    semaines.push(jours.slice(i, i + 7));
+  }
+  return semaines;
+}
+
+// Les 3 prochains mois à afficher sur l'écran Calendrier, en commençant par
+// le mois en cours.
+export function prochainsMois(nombre = 3) {
+  const [anneeStr, moisStr] = aujourdhuiParis().split('-');
+  const annee = Number(anneeStr);
+  const moisIndex = Number(moisStr) - 1;
+  const resultat = [];
+  for (let i = 0; i < nombre; i++) {
+    const total = moisIndex + i;
+    resultat.push({ annee: annee + Math.floor(total / 12), moisIndex: total % 12 });
+  }
+  return resultat;
+}
