@@ -12,7 +12,12 @@ const TOLERANCE_MEME_LIGNE = 3; // points PDF
 // .transform) en lignes visuelles, triées haut → bas puis gauche → droite,
 // au lieu de l'ordre brut (souvent trompeur) du flux interne du PDF.
 export function construireLignes(items) {
-  const utiles = items.filter((it) => it.str.trim() !== '');
+  // Ne filtre que les fragments réellement vides — pas ceux qui ne sont
+  // qu'un espace (it.str.trim() !== '' les aurait aussi éliminés) : un
+  // fragment espace à part entière porte l'espacement réel entre les mots
+  // sur les PDF à police composite (voir lecteurPdfMinimal.js), il doit
+  // survivre jusqu'à assemblerLigne().
+  const utiles = items.filter((it) => it.str !== '');
   const tries = [...utiles].sort((a, b) => b.transform[5] - a.transform[5]);
 
   const lignes = [];
@@ -32,9 +37,30 @@ export function construireLignes(items) {
   }
   if (ligneCourante.length) lignes.push(ligneCourante);
 
-  return lignes.map((ligne) =>
-    [...ligne].sort((a, b) => a.transform[4] - b.transform[4]).map((it) => it.str).join(' ').trim()
-  );
+  return lignes.map(assemblerLigne);
+}
+
+// Assemble les fragments d'une ligne en texte. Deux styles de PDF bien
+// distincts ont été rencontrés sur de vrais bons d'achat :
+// - Carrefour (police simple) : chaque fragment est déjà un mot/une phrase
+//   entière (un seul Tj pour "Numéro de bon", un autre pour la valeur), sans
+//   glyphe espace entre deux fragments qui en auraient besoin — un espace
+//   entre chaque fragment reste le bon repli, comme avant.
+// - Leroy Merlin / Fnac / IKEA (police composite Identity-H) : chaque
+//   caractère est dessiné par son propre Tj — y compris les espaces, qui
+//   sont désormais conservés comme fragments à part entière (voir
+//   lecteurPdfMinimal.js). Ici, coller les fragments sans rien rajouter
+//   restitue le texte exact ; ajouter un espace entre chaque fragment comme
+//   pour Carrefour donnerait "U n e" au lieu de "Une".
+function assemblerLigne(ligneItems) {
+  const tries = [...ligneItems].sort((a, b) => a.transform[4] - b.transform[4]);
+  const courts = tries.filter((it) => it.str.length <= 1).length;
+  const granulariteParCaractere = tries.length >= 4 && courts / tries.length > 0.7;
+
+  const texte = granulariteParCaractere
+    ? tries.map((it) => it.str).join('')
+    : tries.map((it) => it.str).join(' ');
+  return texte.trim().replace(/ {2,}/g, ' ');
 }
 
 function normaliserDate(jour, mois, annee) {

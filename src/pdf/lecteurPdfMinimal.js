@@ -118,6 +118,93 @@ function resoudreRefIndirecte(dict, cle) {
   return m ? Number(m[1]) : null;
 }
 
+// Dictionnaire /Font d'un Resources donné : { nom -> numéro d'objet }. Même
+// forme que extraireDictXObject, pour résoudre "/F7 24 Tf" vers l'objet
+// police utilisé au moment de décoder le texte qui suit.
+function extraireDictFont(dictResources) {
+  const map = new Map();
+  const mBloc = dictResources.match(/\/Font\s*<<([^>]*(?:>>[^>]*)*?)>>/);
+  if (!mBloc) return map;
+  const re = /\/(\S+)\s+(\d+)\s+\d+\s+R/g;
+  let m;
+  while ((m = re.exec(mBloc[1]))) map.set(m[1], Number(m[2]));
+  return map;
+}
+
+// ---- Police composite (Type0/Identity-H) et table ToUnicode ---------------
+//
+// Découvert sur des bons Leroy Merlin / Fnac / IKEA réels : contrairement au
+// bon Carrefour (police simple Type1/TrueType, 1 octet = 1 caractère
+// WinAnsi), ces PDF utilisent des polices composites Type0 en Identity-H où
+// chaque code de 2 octets dans les chaînes "Tj"/"TJ" n'est qu'un indice de
+// glyphe (CID) — pas un caractère. Le texte réel n'est récupérable qu'en
+// repassant chaque CID par la table ToUnicode intégrée à la police.
+
+function hexVersUnicode(hex) {
+  const propre = hex.replace(/\s+/g, '');
+  let res = '';
+  for (let i = 0; i < propre.length; i += 4) {
+    const groupe = propre.slice(i, i + 4).padEnd(4, '0');
+    res += String.fromCharCode(parseInt(groupe, 16));
+  }
+  return res;
+}
+
+// Parse un flux CMap ToUnicode (sections "beginbfchar"/"beginbfrange") en
+// Map<code CID, texte unicode>. Gère les deux formes de bfrange : une
+// destination unique qu'on incrémente sur la plage, ou un tableau donnant
+// une destination explicite par code.
+function analyserCMapToUnicode(texte) {
+  const cmap = new Map();
+
+  for (const blocChar of texte.matchAll(/beginbfchar([\s\S]*?)endbfchar/g)) {
+    for (const m of blocChar[1].matchAll(/<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>/g)) {
+      cmap.set(parseInt(m[1], 16), hexVersUnicode(m[2]));
+    }
+  }
+
+  for (const blocRange of texte.matchAll(/beginbfrange([\s\S]*?)endbfrange/g)) {
+    let corps = blocRange[1];
+    const reTableau = /<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>\s*\[([^\]]*)\]/g;
+    for (const m of corps.matchAll(reTableau)) {
+      const debut = parseInt(m[1], 16);
+      const destinations = [...m[3].matchAll(/<([0-9A-Fa-f]+)>/g)].map((x) => hexVersUnicode(x[1]));
+      destinations.forEach((d, i) => cmap.set(debut + i, d));
+    }
+    // Retire les plages "tableau" déjà traitées pour ne pas les re-matcher
+    // comme des plages "destination unique" ci-dessous.
+    corps = corps.replace(reTableau, '');
+    for (const m of corps.matchAll(/<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>/g)) {
+      const debut = parseInt(m[1], 16);
+      const fin = parseInt(m[2], 16);
+      const destinationBase = parseInt(m[3], 16);
+      for (let code = debut; code <= fin; code++) {
+        cmap.set(code, String.fromCharCode(destinationBase + (code - debut)));
+      }
+    }
+  }
+
+  return cmap;
+}
+
+// Décode les octets bruts capturés par Tj/TJ (1 caractère JS = 1 octet du
+// flux, voir octetsVersLatin1) en texte réel, selon la police en cours :
+// - police simple (1 octet = 1 caractère) : comportement historique,
+//   passthrough Latin1 (proche de WinAnsiEncoding pour le français courant) ;
+// - police composite Type0 (2 octets = 1 CID) : passage par sa table
+//   ToUnicode. Un CID absent de la table est ignoré plutôt que de produire
+//   un caractère erroné.
+function decoderTexteAvecPolice(octets, decodeurPolice) {
+  if (!decodeurPolice || !decodeurPolice.deuxOctets) return octets;
+  let res = '';
+  for (let i = 0; i + 1 < octets.length; i += 2) {
+    const code = (octets.charCodeAt(i) << 8) | octets.charCodeAt(i + 1);
+    const mappe = decodeurPolice.cmap?.get(code);
+    if (mappe != null) res += mappe;
+  }
+  return res;
+}
+
 // ---- Mini-interpréteur du flux de contenu ---------------------------------
 
 function decoderChaineLitterale(s) {
@@ -159,7 +246,11 @@ function decoderChaineHex(s) {
 // `items` (offsetX/offsetY = position d'insertion du bloc, pour composer
 // correctement un Form XObject invoqué via "cm ... Do"). `resoudreDo`
 // permet de descendre récursivement dans les Form XObject référencés.
-function interpreterFluxDeContenu(contenu, items, offsetX, offsetY, resoudreDo, profondeur) {
+// `dictFontCourant` (nom -> numéro d'objet police) et `decodeurPour` (numéro
+// d'objet police -> décodeur, mémoïsé côté appelant) servent à décoder le
+// texte selon la police sélectionnée par "Tf" — nécessaire pour les
+// polices composites Type0/Identity-H (voir decoderTexteAvecPolice).
+function interpreterFluxDeContenu(contenu, items, offsetX, offsetY, dictFontCourant, decodeurPour, resoudreDo, profondeur) {
   // Matrice de texte courante [a, b, c, d, e, f] — identité au départ de
   // chaque bloc BT. "Td tx ty" ne fait PAS que soustraire tx/ty : il
   // compose la translation avec cette matrice (e' = tx*a + ty*c + e,
@@ -170,6 +261,7 @@ function interpreterFluxDeContenu(contenu, items, offsetX, offsetY, resoudreDo, 
   let a = 1, b = 0, c = 0, d = 1, e = 0, f = 0;
   let cmOffsetX = 0;
   let cmOffsetY = 0;
+  let decodeurPoliceCourante = null;
 
   const re = /\((?:\\.|[^\\)])*\)|<[^>]*>|\[(?:[^[\]]|\[[^[\]]*\])*\]|-?\d*\.?\d+|\/[A-Za-z0-9]+|[A-Za-z*']+/g;
   let m;
@@ -203,6 +295,10 @@ function interpreterFluxDeContenu(contenu, items, offsetX, offsetY, resoudreDo, 
         // zéro (bug constaté : positions qui grandissent sans fin d'une
         // valeur à l'autre).
         a = 1; b = 0; c = 0; d = 1; e = 0; f = 0;
+      } else if (tok === 'Tf') {
+        const nomPolice = [...pile].reverse().find((p) => p.type === 'nom');
+        const numPolice = nomPolice ? dictFontCourant.get(nomPolice.valeur) : null;
+        decodeurPoliceCourante = numPolice != null ? decodeurPour(numPolice) : null;
       } else if (tok === 'Tm') {
         const nums = pile.filter((p) => p.type === 'num').map((p) => p.valeur);
         if (nums.length >= 6) [a, b, c, d, e, f] = nums;
@@ -222,8 +318,20 @@ function interpreterFluxDeContenu(contenu, items, offsetX, offsetY, resoudreDo, 
         if (nums.length >= 6) { cmOffsetX = nums[4]; cmOffsetY = nums[5]; }
       } else if (tok === 'Tj' || tok === 'TJ' || tok === "'" || tok === '"') {
         const s = [...pile].reverse().find((p) => p.type === 'str');
-        if (s && s.valeur.trim() !== '') {
-          items.push({ str: s.valeur, transform: [1, 0, 0, 1, offsetX + e, offsetY + f] });
+        if (s) {
+          const enComposite = !!decodeurPoliceCourante?.deuxOctets;
+          let texte = decoderTexteAvecPolice(s.valeur, decodeurPoliceCourante);
+          // Bug connu du générateur de ces PDF (Leroy Merlin/Fnac/IKEA) : le
+          // glyphe espace d'une police composite est mappé dans sa table
+          // ToUnicode vers TAB (U+0009) au lieu de U+0020. On le normalise
+          // et on le garde comme fragment à part entière (au lieu de le
+          // rejeter comme "vide") : c'est lui qui porte l'espacement réel
+          // entre les mots, voir assemblerLigne() dans analyserLignesBon.js.
+          if (enComposite) texte = texte.replace(/[\t\n\r\f\v]/g, ' ');
+          const aGarder = enComposite ? texte !== '' : texte.trim() !== '';
+          if (aGarder) {
+            items.push({ str: texte, transform: [1, 0, 0, 1, offsetX + e, offsetY + f] });
+          }
         }
       } else if (tok === 'Do' && profondeur < 6) {
         const nom = [...pile].reverse().find((p) => p.type === 'nom');
@@ -261,6 +369,31 @@ export function extraireItemsPdf(buffer) {
     return objets.get(numRes) || '';
   }
 
+  // Décodeur de police mémoïsé par numéro d'objet — partagé pour tout le
+  // document (une police définie dans les Resources de la page a le même
+  // numéro d'objet partout où elle est référencée, y compris depuis un Form
+  // XObject).
+  const cacheDecodeursPolice = new Map();
+  function decodeurPour(numPolice) {
+    if (numPolice == null) return null;
+    if (!cacheDecodeursPolice.has(numPolice)) {
+      const dictPolice = objets.get(numPolice);
+      let decodeur = null;
+      if (dictPolice) {
+        const estType0 = /\/Subtype\s*\/Type0\b/.test(dictPolice);
+        let cmap = null;
+        const numToUnicode = resoudreRefIndirecte(dictPolice, 'ToUnicode');
+        if (numToUnicode != null) {
+          const brut = contenuDecodeDe(numToUnicode);
+          if (brut) cmap = analyserCMapToUnicode(brut);
+        }
+        decodeur = { deuxOctets: estType0, cmap };
+      }
+      cacheDecodeursPolice.set(numPolice, decodeur);
+    }
+    return cacheDecodeursPolice.get(numPolice);
+  }
+
   // Résout et interprète un Form XObject invoqué par "Do", en composant sa
   // position avec le décalage accumulé par les "cm" qui précèdent l'appel.
   function resoudreDo(dictResourcesCourant, nom, offX, offY, profondeur) {
@@ -279,6 +412,8 @@ export function extraireItemsPdf(buffer) {
       items,
       offX,
       offY,
+      extraireDictFont(dictRessourcesCible),
+      decodeurPour,
       (n, ox, oy, p) => resoudreDo(dictRessourcesCible, n, ox, oy, p),
       profondeur
     );
@@ -286,6 +421,7 @@ export function extraireItemsPdf(buffer) {
 
   if (page) {
     const dictRessourcesPage = dictResourcesDe(page.contenu);
+    const dictFontPage = extraireDictFont(dictRessourcesPage);
     for (const numContenu of extraireRefsContents(page.contenu)) {
       const decode = contenuDecodeDe(numContenu);
       if (!decode) continue;
@@ -294,6 +430,8 @@ export function extraireItemsPdf(buffer) {
         items,
         0,
         0,
+        dictFontPage,
+        decodeurPour,
         (n, ox, oy, p) => resoudreDo(dictRessourcesPage, n, ox, oy, p),
         0
       );
@@ -304,7 +442,7 @@ export function extraireItemsPdf(buffer) {
     for (const [num] of objets) {
       const decode = contenuDecodeDe(num);
       if (decode && /\bBT\b/.test(decode)) {
-        interpreterFluxDeContenu(decode, items, 0, 0, () => {}, 0);
+        interpreterFluxDeContenu(decode, items, 0, 0, new Map(), decodeurPour, () => {}, 0);
       }
     }
   }
