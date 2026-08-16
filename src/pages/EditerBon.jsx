@@ -18,7 +18,6 @@ export default function EditerBon() {
   const [charge, setCharge] = useState(false);
   const [enseigneNom, setEnseigneNom] = useState('');
   const [montant, setMontant] = useState('');
-  const [taux, setTaux] = useState('');
   const [dateAchat, setDateAchat] = useState('');
   const [dateExpiration, setDateExpiration] = useState('');
   const [code, setCode] = useState('');
@@ -32,7 +31,6 @@ export default function EditerBon() {
       if (!bon) return;
       setEnseigneNom(bon.enseigne?.nom ?? '');
       setMontant((bon.montantInitial / 100).toString().replace('.', ','));
-      setTaux(bon.tauxReduction != null ? String(bon.tauxReduction) : '');
       setDateAchat(bon.dateAchat);
       setDateExpiration(bon.dateExpiration ?? '');
       setCode(bon.code ?? '');
@@ -65,7 +63,6 @@ export default function EditerBon() {
         id,
         enseigneNom: enseigneNom.trim(),
         montantInitial: montantCentimes,
-        tauxReduction: taux.trim() === '' ? null : Number(taux),
         dateAchat,
         dateExpiration: dateExpiration || null,
         code,
@@ -99,8 +96,6 @@ export default function EditerBon() {
           setEnseigneNom={setEnseigneNom}
           montant={montant}
           setMontant={setMontant}
-          taux={taux}
-          setTaux={setTaux}
           dateAchat={dateAchat}
           setDateAchat={setDateAchat}
           dateExpiration={dateExpiration}

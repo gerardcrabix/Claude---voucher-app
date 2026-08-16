@@ -25,7 +25,6 @@ export default function NouveauBon() {
   const [enseigneNom, setEnseigneNom] = useState('');
   const [soldeInfo, setSoldeInfo] = useState(null);
   const [montant, setMontant] = useState('');
-  const [taux, setTaux] = useState('');
   const [dateAchat, setDateAchat] = useState(dateInputAujourdhui());
   const [dateExpiration, setDateExpiration] = useState('');
   const [code, setCode] = useState('');
@@ -113,7 +112,6 @@ export default function NouveauBon() {
       const { bon } = await creerBon({
         enseigneNom: enseigneNom.trim(),
         montantInitial: montantCentimes,
-        tauxReduction: taux.trim() === '' ? null : Number(taux),
         dateAchat,
         dateExpiration: dateExpiration || null,
         code,
@@ -153,8 +151,6 @@ export default function NouveauBon() {
           setEnseigneNom={setEnseigneNom}
           montant={montant}
           setMontant={setMontant}
-          taux={taux}
-          setTaux={setTaux}
           dateAchat={dateAchat}
           setDateAchat={setDateAchat}
           dateExpiration={dateExpiration}

@@ -110,7 +110,6 @@ export default function BonDetail() {
         </span>
         <p className="texte-discret">
           Acheté le {formatDateAffichage(bon.dateAchat)}
-          {bon.tauxReduction != null && ` · réduction ${bon.tauxReduction}%`}
           {' · montant initial '}
           {centimesVersAffichage(bon.montantInitial)}
         </p>

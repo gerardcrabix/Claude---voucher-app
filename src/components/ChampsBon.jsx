@@ -6,8 +6,6 @@ export default function ChampsBon({
   setEnseigneNom,
   montant,
   setMontant,
-  taux,
-  setTaux,
   dateAchat,
   setDateAchat,
   dateExpiration,
@@ -51,19 +49,6 @@ export default function ChampsBon({
           value={montant}
           onChange={(e) => setMontant(e.target.value)}
         />
-      </div>
-
-      <div className="champ">
-        <label htmlFor="taux">Taux de réduction (optionnel)</label>
-        <input
-          id="taux"
-          type="text"
-          inputMode="decimal"
-          placeholder="ex. 10"
-          value={taux}
-          onChange={(e) => setTaux(e.target.value)}
-        />
-        <span className="aide">En pourcentage, pour information seulement.</span>
       </div>
 
       <div className="champ">
