@@ -1,4 +1,4 @@
-import { HashRouter, Routes, Route, NavLink } from 'react-router-dom';
+import { HashRouter, Routes, Route, NavLink, Link } from 'react-router-dom';
 import { IdentityProvider, useIdentity, libelleIdentite } from './identity/IdentityContext.jsx';
 import QuiEtesVous from './pages/QuiEtesVous.jsx';
 import Accueil from './pages/Accueil.jsx';
@@ -9,15 +9,21 @@ import Enseignes from './pages/Enseignes.jsx';
 import Expires from './pages/Expires.jsx';
 import Calendrier from './pages/Calendrier.jsx';
 import Diagnostic from './pages/Diagnostic.jsx';
+import Admin from './pages/Admin.jsx';
 
 function Entete() {
   const { identite, changerDePersonne } = useIdentity();
   return (
     <div className="entete">
       <h1>Bons</h1>
-      <button className="bouton-identite" onClick={changerDePersonne}>
-        {libelleIdentite(identite)}
-      </button>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        {identite === 'moi' && (
+          <Link to="/admin" className="bouton-discret">Admin</Link>
+        )}
+        <button className="bouton-identite" onClick={changerDePersonne}>
+          {libelleIdentite(identite)}
+        </button>
+      </div>
     </div>
   );
 }
@@ -58,6 +64,7 @@ function AppConnectee() {
         <Route path="/expires" element={<Expires />} />
         <Route path="/calendrier" element={<Calendrier />} />
         <Route path="/diagnostic" element={<Diagnostic />} />
+        <Route path="/admin" element={<Admin />} />
       </Routes>
       <NavBasse />
     </div>
