@@ -182,6 +182,14 @@ p {
   box-shadow: var(--ombre);
   max-width: calc(480px - 32px);
   margin: 0 auto;
+  /* .bouton-flottant est un <a> (lien de routage) : sans ça, le "+" ne se
+     centre ni verticalement ni horizontalement dans le rond. */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  box-sizing: border-box;
+  padding-bottom: 4px; /* optique : le glyphe "+" paraît décalé sans ça */
 }
 
 .bouton-flottant-conteneur {
@@ -528,28 +536,39 @@ a.ligne-enseigne {
   border: none;
   background: transparent;
   border-radius: 10px;
-  font-size: 0.9rem;
-  color: var(--couleur-texte);
+  font-size: 0.85rem;
+  color: var(--couleur-texte-discret);
+  opacity: 0.5;
 }
 
 .jour-calendrier.hors-mois {
-  color: var(--couleur-bordure);
+  opacity: 0.2;
 }
 
-.jour-calendrier.aujourdhui {
-  font-weight: 800;
-  box-shadow: inset 0 0 0 2px var(--couleur-accent);
-}
-
+/* Le cœur de l'écran Calendrier : seuls les jours avec un bon à échéance
+   doivent sauter aux yeux, tout le reste s'efface en arrière-plan. */
 .jour-calendrier.avec-bon {
+  opacity: 1;
   background: var(--couleur-accent-clair);
   color: var(--couleur-accent-fonce);
-  font-weight: 700;
+  font-weight: 800;
+  font-size: 0.95rem;
+  box-shadow: var(--ombre);
 }
 
 .jour-calendrier.urgent {
   background: var(--couleur-alerte-fond);
   color: var(--couleur-alerte);
+}
+
+.jour-calendrier.aujourdhui {
+  opacity: 1;
+  font-weight: 800;
+  box-shadow: inset 0 0 0 2px var(--couleur-accent);
+}
+
+.jour-calendrier.aujourdhui.avec-bon {
+  box-shadow: var(--ombre), inset 0 0 0 2px var(--couleur-accent);
 }
 
 .jour-calendrier.selectionne {

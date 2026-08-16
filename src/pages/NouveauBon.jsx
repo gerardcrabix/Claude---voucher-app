@@ -30,7 +30,9 @@ export default function NouveauBon() {
   const [code, setCode] = useState('');
   const [pin, setPin] = useState('');
   const [pdf, setPdf] = useState(null);
-  const [etatExtraction, setEtatExtraction] = useState(null); // null | 'en-cours' | 'trouve' | 'rien-trouve'
+  // null | 'en-cours' | 'trouve' | 'rien-trouve' | 'echec-technique'
+  const [etatExtraction, setEtatExtraction] = useState(null);
+  const [detailEchec, setDetailEchec] = useState(null);
   const [erreur, setErreur] = useState(null);
   const [enCours, setEnCours] = useState(false);
 
@@ -67,12 +69,23 @@ export default function NouveauBon() {
   async function surChoixPdf(e) {
     const fichier = e.target.files?.[0];
     setPdf(fichier ?? null);
+    setDetailEchec(null);
     if (!fichier) {
       setEtatExtraction(null);
       return;
     }
     setEtatExtraction('en-cours');
     const infos = await extraireInfosPdf(fichier);
+
+    if (infos.erreur) {
+      // Vraie panne technique (réseau, PDF illisible…), distincte d'un PDF
+      // lu normalement mais sans rien à en tirer — pour ne pas confondre
+      // les deux si ça recoince.
+      setEtatExtraction('echec-technique');
+      setDetailEchec(infos.erreur);
+      return;
+    }
+
     let trouveQuelqueChose = false;
     if (infos.code && code.trim() === '') {
       setCode(infos.code);
@@ -140,9 +153,30 @@ export default function NouveauBon() {
             {etatExtraction === 'trouve' &&
               'Code / PIN / date repérés dans le PDF et préremplis ci-dessous — vérifiez avant de valider.'}
             {etatExtraction === 'rien-trouve' &&
-              "Rien d'exploitable trouvé dans ce PDF, complétez à la main ci-dessous."}
+              "Le PDF a été lu mais rien d'exploitable n'y a été repéré, complétez à la main ci-dessous."}
+            {etatExtraction === 'echec-technique' && (
+              <>
+                Échec technique de la lecture du PDF (pas un problème de mise en page du bon —
+                complétez à la main pour l'instant).
+                {detailEchec && (
+                  <>
+                    <br />
+                    <code style={{ fontSize: '0.75rem' }}>{detailEchec}</code>
+                  </>
+                )}
+              </>
+            )}
             {etatExtraction === null && 'Si vous en avez un, ça préremplit le code, le PIN et la date.'}
           </span>
+          {etatExtraction === 'echec-technique' && pdf && (
+            <button
+              type="button"
+              className="bouton-discret"
+              onClick={() => surChoixPdf({ target: { files: [pdf] } })}
+            >
+              Réessayer la lecture du PDF
+            </button>
+          )}
         </div>
 
         <ChampsBon

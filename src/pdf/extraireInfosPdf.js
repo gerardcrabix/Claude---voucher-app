@@ -14,6 +14,11 @@ import { chercherCode, chercherDateExpiration, chercherPin, construireLignes } f
 // pdfjs-dist pèse plus d'1 Mo (worker compris) : chargé à la demande
 // seulement quand un PDF est effectivement choisi, pas au démarrage de
 // l'app ni dans le bundle principal.
+//
+// Important : si ce chargement échoue une fois (ex. coupure réseau le temps
+// de récupérer le fichier du worker, ~1,2 Mo), on NE GARDE PAS la promesse
+// rejetée en cache — sinon tous les essais suivants dans la même session
+// échoueraient silencieusement sans jamais retenter le téléchargement.
 let pdfjsLibPromise = null;
 function chargerPdfjs() {
   if (!pdfjsLibPromise) {
@@ -23,6 +28,9 @@ function chargerPdfjs() {
     ]).then(([lib, worker]) => {
       lib.GlobalWorkerOptions.workerSrc = worker.default;
       return lib;
+    });
+    pdfjsLibPromise.catch(() => {
+      pdfjsLibPromise = null;
     });
   }
   return pdfjsLibPromise;
@@ -41,22 +49,33 @@ async function extraireLignes(file) {
   return lignes;
 }
 
-// Renvoie { code, pin, dateExpiration, texteBrutDisponible } — chaque champ
-// est null si non trouvé, à charge de l'appelant de laisser la saisie
-// manuelle pour les champs manquants.
+// Renvoie { code, pin, dateExpiration, texteBrutDisponible, erreur }.
+// `erreur` n'est renseigné que si une vraie panne technique a empêché la
+// lecture (réseau, PDF corrompu…) — à distinguer de "le PDF a bien été lu
+// mais ne contient rien d'exploitable", pour pouvoir diagnostiquer ce qui se
+// passe réellement plutôt que d'afficher le même message générique dans
+// tous les cas.
 export async function extraireInfosPdf(file) {
   try {
     const lignes = await extraireLignes(file);
     if (lignes.length === 0) {
-      return { code: null, pin: null, dateExpiration: null, texteBrutDisponible: false };
+      return { code: null, pin: null, dateExpiration: null, texteBrutDisponible: false, erreur: null };
     }
     return {
       code: chercherCode(lignes),
       pin: chercherPin(lignes),
       dateExpiration: chercherDateExpiration(lignes),
       texteBrutDisponible: true,
+      erreur: null,
     };
-  } catch {
-    return { code: null, pin: null, dateExpiration: null, texteBrutDisponible: false };
+  } catch (e) {
+    console.error('extraireInfosPdf: échec technique de lecture du PDF', e);
+    return {
+      code: null,
+      pin: null,
+      dateExpiration: null,
+      texteBrutDisponible: false,
+      erreur: e?.message || String(e),
+    };
   }
 }
