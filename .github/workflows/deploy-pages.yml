@@ -29,8 +29,27 @@ jobs:
         with:
           node-version: 22
           cache: npm
+
+      # v1 — MVP local (sans backend), inchangé, servi à la racine du site.
       - run: npm ci
       - run: npm run build
+
+      # v2 — projet avec backend Supabase (voir v2/README.md), servi sous
+      # /v2/. VITE_SUPABASE_ANON_KEY n'est pas un secret à protéger ici :
+      # elle est conçue pour être publique (elle finit de toute façon dans
+      # le bundle JS envoyé au navigateur) — ce qui protège les données,
+      # c'est Row Level Security côté base (v2/supabase/migrations/
+      # 0001_init.sql), pas la confidentialité de cette clé.
+      - run: npm ci
+        working-directory: v2
+      - run: npm run build
+        working-directory: v2
+        env:
+          VITE_SUPABASE_URL: https://jurjkizhyrbuydqvcfxw.supabase.co
+          VITE_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp1cmpraXpoeXJidXlkcXZjZnh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY4OTQxMDQsImV4cCI6MjEwMjQ3MDEwNH0.yAOGQ0uR_XP9pQwUSDe63bDJgOibF_z2g5AMR5-qRb4
+
+      - run: mkdir -p dist/v2 && cp -r v2/dist/. dist/v2/
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
