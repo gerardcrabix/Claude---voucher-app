@@ -1,6 +1,7 @@
 import { HashRouter, Routes, Route, NavLink } from 'react-router-dom';
 import { AuthProvider, useAuth } from './auth/AuthContext.jsx';
 import Connexion from './pages/Connexion.jsx';
+import ReinitialiserMotDePasse from './pages/ReinitialiserMotDePasse.jsx';
 import Accueil from './pages/Accueil.jsx';
 import NouveauBon from './pages/NouveauBon.jsx';
 import BonDetail from './pages/BonDetail.jsx';
@@ -73,7 +74,12 @@ function AppConnectee() {
 }
 
 function Racine() {
-  const { connecte, chargementInitial } = useAuth();
+  const { connecte, chargementInitial, enRecuperation } = useAuth();
+  // Prioritaire sur tout le reste, y compris le chargement : le lien reçu
+  // par e-mail ("mot de passe oublié") doit toujours mener à ce formulaire,
+  // quelle que soit la route dans l'URL au moment où il arrive (voir
+  // AuthContext.jsx, `demanderReinitialisation`).
+  if (enRecuperation) return <ReinitialiserMotDePasse />;
   if (chargementInitial) {
     return <div className="ecran-centre"><p className="texte-discret">Chargement…</p></div>;
   }

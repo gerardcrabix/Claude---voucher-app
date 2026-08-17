@@ -35,6 +35,12 @@ export default function BonCard({ bon, onDepenser }) {
           {bon.pin && <span className="pin">PIN {bon.pin}</span>}
         </div>
       )}
+      {bon.codeBarresUrl && (
+        // Affiché directement sur la carte (pas seulement dans la fiche
+        // détail) : c'est ce qu'on montre en caisse, il ne doit pas falloir
+        // un appui de plus pour l'avoir sous les yeux.
+        <img src={bon.codeBarresUrl} alt="Code-barres ou QR code du bon" className="image-code-barres" />
+      )}
       <span className={`expiration ${urgent ? 'urgent' : ''}`}>
         {bon.dateExpiration
           ? `${expire ? 'Expiré le' : "À utiliser avant le"} ${formatDateAffichage(bon.dateExpiration)}`

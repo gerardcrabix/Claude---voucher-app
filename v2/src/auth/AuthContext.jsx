@@ -20,6 +20,13 @@ export function AuthProvider({ children }) {
   const [session, setSession] = useState(undefined); // undefined = pas encore su, null = déconnecté
   const [profils, setProfils] = useState([]); // [{id, label, role}, ...] — les deux comptes (CM, AJ)
   const [chargementProfils, setChargementProfils] = useState(false);
+  // Passe à true quand le lien reçu par e-mail ("mot de passe oublié") vient
+  // d'être ouvert : Supabase crée alors une session temporaire de
+  // récupération et prévient via cet évènement, avant même que l'app sache
+  // si la session est "normale" ou non — voir App.jsx, qui court-circuite le
+  // routage habituel tant que c'est vrai, pour afficher le formulaire de
+  // nouveau mot de passe plutôt que l'accueil ou l'écran de connexion.
+  const [enRecuperation, setEnRecuperation] = useState(false);
 
   const chargerProfils = useCallback(async () => {
     setChargementProfils(true);
@@ -35,7 +42,10 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session ?? null));
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => setSession(s));
+    const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
+      setSession(s);
+      if (event === 'PASSWORD_RECOVERY') setEnRecuperation(true);
+    });
     return () => sub.subscription.unsubscribe();
   }, []);
 
@@ -51,6 +61,25 @@ export function AuthProvider({ children }) {
 
   async function seDeconnecter() {
     await supabase.auth.signOut();
+  }
+
+  // "Mot de passe oublié" (remplace l'ancien onglet Admin de la v1, qui
+  // changeait les mots de passe locaux à la main) : envoie un e-mail avec un
+  // lien à usage unique. Le redirectTo pointe volontairement vers la racine
+  // du site, SANS route "#/..." — Supabase ajoute ses propres jetons après
+  // un "#" à l'arrivée, et un deuxième "#" dans l'URL (à cause du routage
+  // par hash de l'appli) empêcherait Supabase de les relire correctement.
+  async function demanderReinitialisation(email) {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + window.location.pathname,
+    });
+    if (error) throw error;
+  }
+
+  async function definirNouveauMotDePasse(nouveauMotDePasse) {
+    const { error } = await supabase.auth.updateUser({ password: nouveauMotDePasse });
+    if (error) throw error;
+    setEnRecuperation(false);
   }
 
   const identite = session?.user?.id ?? null;
@@ -73,8 +102,11 @@ export function AuthProvider({ children }) {
     // uid brut le temps du premier chargement.
     chargementInitial: session === undefined || (session !== null && chargementProfils && profils.length === 0),
     connecte: !!session,
+    enRecuperation,
     seConnecter,
     seDeconnecter,
+    demanderReinitialisation,
+    definirNouveauMotDePasse,
     libelleIdentite,
   };
 
