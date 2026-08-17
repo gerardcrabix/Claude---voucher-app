@@ -4,12 +4,15 @@ import {
   definirLogoEnseigne,
   EnseigneUtiliseeError,
   listerEnseignes,
+  listerHistoriqueParEnseigne,
   renommerEnseigne,
   supprimerEnseigne,
   trouverOuCreerEnseigne,
 } from '../db/repository.js';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { redimensionnerImageEnDataUrl } from '../utils/image.js';
+import { centimesVersAffichage } from '../utils/money.js';
+import { formatDateAffichage } from '../utils/dates.js';
 
 // Gestion des enseignes : création directe (pour pouvoir lui donner un logo
 // avant même le premier bon), renommer, lien de vérification de solde en
@@ -19,7 +22,7 @@ import { redimensionnerImageEnDataUrl } from '../utils/image.js';
 // supabase/migrations/0001_init.sql) : c'est une petite image déjà
 // redimensionnée côté client, pas besoin d'un bucket Storage pour ça.
 export default function Enseignes() {
-  const { identite, estAdmin } = useAuth();
+  const { identite, estAdmin, libelleIdentite } = useAuth();
   const peutGererLogo = estAdmin;
 
   const [enseignes, setEnseignes] = useState(null);
@@ -31,6 +34,9 @@ export default function Enseignes() {
   const [erreur, setErreur] = useState(null);
   const [creationOuverte, setCreationOuverte] = useState(false);
   const [nomCreation, setNomCreation] = useState('');
+  const [historiqueOuvert, setHistoriqueOuvert] = useState(null); // id de l'enseigne affichée
+  const [historiqueLignes, setHistoriqueLignes] = useState([]);
+  const [historiqueChargement, setHistoriqueChargement] = useState(false);
 
   async function charger() {
     setEnseignes(await listerEnseignes());
@@ -78,6 +84,20 @@ export default function Enseignes() {
     if (peutGererLogo) await definirLogoEnseigne(id, logoEdite);
     setEnEdition(null);
     await charger();
+  }
+
+  // Historique complet de l'enseigne, tous bons confondus (§ voir
+  // repository.js) — bascule affichage/masquage au second clic sur la même
+  // enseigne, comme un accordéon.
+  async function basculerHistorique(id) {
+    if (historiqueOuvert === id) {
+      setHistoriqueOuvert(null);
+      return;
+    }
+    setHistoriqueOuvert(id);
+    setHistoriqueChargement(true);
+    setHistoriqueLignes(await listerHistoriqueParEnseigne(id));
+    setHistoriqueChargement(false);
   }
 
   async function supprimer(id) {
@@ -238,10 +258,51 @@ export default function Enseignes() {
                     <button className="bouton-grand bouton-secondaire" onClick={() => commencerEdition(e)}>
                       Modifier
                     </button>
+                    <button className="bouton-grand bouton-secondaire" onClick={() => basculerHistorique(e.id)}>
+                      {historiqueOuvert === e.id ? 'Masquer l\'historique' : 'Historique'}
+                    </button>
                     <button className="bouton-grand bouton-danger" onClick={() => supprimer(e.id)}>
                       Supprimer
                     </button>
                   </div>
+                  {historiqueOuvert === e.id && (
+                    <div className="historique-enseigne">
+                      {historiqueChargement ? (
+                        <p className="texte-discret">Chargement…</p>
+                      ) : historiqueLignes.length === 0 ? (
+                        <p className="texte-discret">Aucun mouvement pour cette enseigne.</p>
+                      ) : (
+                        <div className="tableau-scroll">
+                          <table className="tableau-historique">
+                            <thead>
+                              <tr>
+                                <th>N° du bon</th>
+                                <th>Date</th>
+                                <th>Modification</th>
+                                <th>Montant avant</th>
+                                <th>Montant après</th>
+                                <th>Qui</th>
+                                <th>Note</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {historiqueLignes.map((l, i) => (
+                                <tr key={i}>
+                                  <td className="code">{l.bonCode}</td>
+                                  <td>{formatDateAffichage(l.date)}</td>
+                                  <td>{l.type}</td>
+                                  <td>{centimesVersAffichage(l.montantAvant)}</td>
+                                  <td>{centimesVersAffichage(l.montantApres)}</td>
+                                  <td>{libelleIdentite(l.auteur)}</td>
+                                  <td>{l.note}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </>
               )}
             </div>

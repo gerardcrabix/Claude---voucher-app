@@ -280,6 +280,68 @@ export async function listerPastillesEnseignes(identite) {
   return pastilles.filter((p) => p.nombreBons > 0);
 }
 
+// Historique complet d'une enseigne, tous bons confondus (actifs, expirés
+// ou clôturés) — pas juste un bon à la fois comme dans la fiche détail.
+// Rejoue chronologiquement les dépenses et corrections de chaque bon pour
+// donner un "montant avant / montant après" à chaque ligne, même pour les
+// dépenses qui n'ont normalement qu'un montant, pas un avant/après — c'est
+// plus parlant pour relire un historique que la seule valeur dépensée.
+function calculerLignesHistoriqueBon(bon, mouvements, overrides, modifications) {
+  const evenements = [
+    ...mouvements.map((m) => ({ type: 'depense', ...m })),
+    ...overrides.map((o) => ({ type: 'correction', ...o })),
+  ].sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
+
+  let solde = bon.montantInitial;
+  const lignes = evenements.map((e) => {
+    const avant = solde;
+    const apres = e.type === 'depense' ? avant - e.montant : e.nouveauSolde;
+    solde = apres;
+    return {
+      bonCode: bon.code,
+      bonId: bon.id,
+      date: e.type === 'depense' ? e.date : e.createdAt.slice(0, 10),
+      createdAt: e.createdAt,
+      type: e.type === 'depense' ? 'Dépense' : 'Correction de solde',
+      montantAvant: avant,
+      montantApres: apres,
+      auteur: e.auteur,
+      note: (e.type === 'depense' ? e.note : e.motif) || '',
+    };
+  });
+
+  for (const m of modifications) {
+    lignes.push({
+      bonCode: bon.code,
+      bonId: bon.id,
+      date: m.createdAt.slice(0, 10),
+      createdAt: m.createdAt,
+      type: 'Montant initial modifié',
+      montantAvant: m.montantAvant,
+      montantApres: m.montantApres,
+      auteur: m.auteur,
+      note: '',
+    });
+  }
+
+  return lignes;
+}
+
+export async function listerHistoriqueParEnseigne(enseigneId) {
+  const { data, error } = await supabase.from('bons').select('*').eq('enseigne_id', enseigneId);
+  leverSiErreur(error);
+  const bons = data.map(bonDepuisRow);
+
+  const parBon = await Promise.all(
+    bons.map(async (b) => {
+      const h = await chargerHistorique(b.id);
+      return calculerLignesHistoriqueBon(b, h.mouvements, h.overrides, h.modifications);
+    })
+  );
+
+  return parBon.flat().sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+}
+
 // ---- Création / cycle de vie d'un bon --------------------------------------
 
 export async function creerBon({

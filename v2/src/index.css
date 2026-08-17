@@ -616,6 +616,49 @@ a.ligne-enseigne {
   flex: 0 0 auto;
 }
 
+.historique-enseigne {
+  border-top: 1px solid var(--couleur-bordure);
+  padding-top: 10px;
+  margin-top: 4px;
+}
+
+/* Largeur du tableau souvent supérieure à celle de l'écran sur mobile :
+   défile horizontalement dans son propre cadre plutôt que de faire déborder
+   toute la page. */
+.tableau-scroll {
+  overflow-x: auto;
+}
+
+.tableau-historique {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.tableau-historique th,
+.tableau-historique td {
+  padding: 6px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--couleur-bordure);
+}
+
+.tableau-historique th {
+  color: var(--couleur-texte-discret);
+  font-weight: 600;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.tableau-historique td.code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.tableau-historique tbody tr:last-child td {
+  border-bottom: none;
+}
+
 .apercu-logo {
   display: flex;
   align-items: center;
