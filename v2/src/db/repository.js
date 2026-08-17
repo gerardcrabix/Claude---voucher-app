@@ -76,6 +76,7 @@ function bonDepuisRow(row) {
     pdfFilename: row.pdf_filename,
     pdfContentType: row.pdf_content_type,
     archived: row.archived,
+    archivedAt: row.archived_at,
     createdAt: row.created_at,
     createdBy: row.created_by,
   };
@@ -554,12 +555,18 @@ export async function corrigerSolde({ bonId, nouveauSolde, motif, auteur }) {
 }
 
 export async function terminerBon(id) {
-  const { error } = await supabase.from('bons').update({ archived: true }).eq('id', id);
+  const { error } = await supabase
+    .from('bons')
+    .update({ archived: true, archived_at: new Date().toISOString() })
+    .eq('id', id);
   leverSiErreur(error);
 }
 
 export async function reactiverBon(id) {
-  const { error } = await supabase.from('bons').update({ archived: false }).eq('id', id);
+  const { error } = await supabase
+    .from('bons')
+    .update({ archived: false, archived_at: null })
+    .eq('id', id);
   leverSiErreur(error);
 }
 

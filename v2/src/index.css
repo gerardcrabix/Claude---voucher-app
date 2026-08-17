@@ -14,6 +14,8 @@
   --couleur-alerte-fond: #fff4e5;
   --couleur-jaune: #92700c;
   --couleur-jaune-fond: #fef9c3;
+  --couleur-neutre: #475569;
+  --couleur-neutre-fond: #e2e8f0;
   --couleur-danger: #b91c1c;
   --couleur-danger-fond: #fdecec;
   --rayon: 14px;
@@ -585,6 +587,11 @@ p {
 .pilule-statut.jaune {
   background: var(--couleur-jaune-fond);
   color: var(--couleur-jaune);
+}
+
+.pilule-statut.neutre {
+  background: var(--couleur-neutre-fond);
+  color: var(--couleur-neutre);
 }
 
 .liste-simple {

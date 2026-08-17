@@ -1,18 +1,18 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { listerBonsEnrichis, terminerBon } from '../db/repository.js';
+import { listerBonsEnrichis, reactiverBon, terminerBon } from '../db/repository.js';
 import { centimesVersAffichage } from '../utils/money.js';
 import { formatDateAffichage } from '../utils/dates.js';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { useSyncBons } from '../db/realtime.js';
 import ModaleCorrigerSolde from '../components/ModaleCorrigerSolde.jsx';
 
-// Bons expirés (date dépassée) ET bons soldés (montant tombé à 0) — les
-// deux disparaissent de l'accueil (qui ne montre que les bons actifs), donc
-// sans cet écran un bon soldé par erreur (mauvaise correction de solde,
-// faute de frappe) devenait introuvable nulle part dans l'application. Les
-// deux catégories sont mélangées ici plutôt que séparées, avec une pastille
-// jaune sur les expirés pour les distinguer d'un coup d'œil des soldés.
+// Bons expirés (date dépassée), soldés (montant tombé à 0) ET clôturés —
+// les trois disparaissent de l'accueil (qui ne montre que les bons actifs),
+// donc sans cet écran il n'y avait aucun moyen de les retrouver ni de
+// rattraper une erreur (correction de solde tapée à 0, clôture au mauvais
+// bon...). Même traitement pour les trois : visibles ici, avec une date
+// pertinente et un bouton pour revenir en arrière.
 //
 // "Corriger le solde" reste le seul vrai moyen de rattraper un solde tombé
 // à 0 par erreur : une fois une correction manuelle enregistrée, elle prime
@@ -35,13 +35,18 @@ export default function Expires() {
 
   async function charger() {
     const tous = await listerBonsEnrichis(identite);
-    setBons(tous.filter((b) => b.statut === 'expire' || b.statut === 'solde'));
+    setBons(tous.filter((b) => b.statut === 'expire' || b.statut === 'solde' || b.statut === 'termine'));
   }
 
   useSyncBons(charger);
 
   async function surTerminer(id) {
     await terminerBon(id);
+    await charger();
+  }
+
+  async function surReactivation(id) {
+    await reactiverBon(id);
     await charger();
   }
 
@@ -54,7 +59,7 @@ export default function Expires() {
       <h1>Expirés</h1>
       {bons.length === 0 ? (
         <div className="vide">
-          <p>Aucun bon expiré ou soldé.</p>
+          <p>Aucun bon expiré, soldé ou clôturé.</p>
         </div>
       ) : (
         <div className="liste-bons">
@@ -66,13 +71,19 @@ export default function Expires() {
                 </Link>
                 <span className="solde">{centimesVersAffichage(bon.solde)}</span>
               </div>
-              {bon.statut === 'expire' ? (
+              {bon.statut === 'expire' && (
                 <span className="pilule-statut jaune">
                   Expiré le {formatDateAffichage(bon.dateExpiration)}
                 </span>
-              ) : (
+              )}
+              {bon.statut === 'solde' && (
                 <span className="pilule-statut">
                   Soldé le {formatDateAffichage(dateDeSolde(bon))}
+                </span>
+              )}
+              {bon.statut === 'termine' && (
+                <span className="pilule-statut neutre">
+                  {bon.archivedAt ? `Clôturé le ${formatDateAffichage(bon.archivedAt.slice(0, 10))}` : 'Clôturé'}
                 </span>
               )}
               <div className="actions">
@@ -84,9 +95,15 @@ export default function Expires() {
                 <Link to={`/bon/${bon.id}/modifier`} className="bouton-grand bouton-secondaire">
                   Modifier
                 </Link>
-                <button className="bouton-grand bouton-secondaire" onClick={() => surTerminer(bon.id)}>
-                  Clôturer
-                </button>
+                {bon.statut === 'termine' ? (
+                  <button className="bouton-grand bouton-secondaire" onClick={() => surReactivation(bon.id)}>
+                    Reprendre
+                  </button>
+                ) : (
+                  <button className="bouton-grand bouton-secondaire" onClick={() => surTerminer(bon.id)}>
+                    Clôturer
+                  </button>
+                )}
               </div>
             </div>
           ))}
