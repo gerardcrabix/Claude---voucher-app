@@ -17,6 +17,40 @@
   </head>
   <body>
     <div id="root"></div>
+    <!-- Filet de secours indépendant de React : si un module plante avant le
+         premier rendu (ex. accès à localStorage refusé par les réglages de
+         confidentialité de certains navigateurs), l'ErrorBoundary React ne
+         peut rien afficher puisque React n'a jamais démarré — juste un écran
+         blanc silencieux. Ce script pur, sans dépendance, s'en aperçoit et
+         affiche un message au lieu de rien. -->
+    <script>
+      window.__cajacBootError = null;
+      window.addEventListener('error', function (e) {
+        if (!window.__cajacBootError) {
+          window.__cajacBootError = e.message + ' (' + e.filename + ':' + e.lineno + ')';
+        }
+      });
+      setTimeout(function () {
+        var racine = document.getElementById('root');
+        if (racine && racine.childElementCount === 0) {
+          var detail = window.__cajacBootError
+            ? '<code style="font-size:.8rem;word-break:break-word;max-width:32em;display:block;">' +
+              window.__cajacBootError.replace(/</g, '&lt;') + '</code>'
+            : '';
+          racine.innerHTML =
+            '<div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;' +
+            'justify-content:center;gap:14px;padding:24px;text-align:center;' +
+            'font-family:system-ui,sans-serif;color:#1c1c1e;background:#f6f5f2;">' +
+            '<h1 style="margin:0;font-size:1.3rem;">L’application n’a pas pu démarrer</h1>' +
+            '<p style="margin:0;color:#6b6b70;max-width:32em;">Rechargez la page. Si ça persiste, ' +
+            'essayez un autre navigateur et signalez le message ci-dessous.</p>' +
+            detail +
+            '<button onclick="location.reload()" style="padding:10px 18px;border:none;' +
+            'border-radius:10px;background:#0f766e;color:#fff;font-weight:600;">Recharger</button>' +
+            '</div>';
+        }
+      }, 5000);
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
