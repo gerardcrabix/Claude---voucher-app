@@ -1,5 +1,7 @@
+import { useEffect } from 'react';
 import { HashRouter, Routes, Route, NavLink } from 'react-router-dom';
 import { AuthProvider, useAuth } from './auth/AuthContext.jsx';
+import { purgerBonsAnciens } from './db/repository.js';
 import Connexion from './pages/Connexion.jsx';
 import ReinitialiserMotDePasse from './pages/ReinitialiserMotDePasse.jsx';
 import Accueil from './pages/Accueil.jsx';
@@ -54,6 +56,14 @@ function NavBasse() {
 }
 
 function AppConnectee() {
+  // Purge automatique des vieux bons expirés/soldés (voir repository.js,
+  // `purgerBonsAnciens`) : une fois par ouverture de session, jamais au
+  // milieu d'une saisie en cours. Ne bloque jamais l'affichage de l'appli
+  // même en cas d'échec (déjà journalisé en interne).
+  useEffect(() => {
+    purgerBonsAnciens().catch(() => {});
+  }, []);
+
   return (
     <div className="app-shell">
       <Entete />

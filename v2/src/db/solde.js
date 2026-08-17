@@ -31,3 +31,16 @@ export function calculerStatut(bon, solde) {
 export function estActif(statut) {
   return statut === 'actif';
 }
+
+// Date du dernier évènement (dépense ou correction) qui a amené le solde à
+// sa valeur actuelle — utile dès que le solde est à 0 : dire juste "0 €"
+// sans date ne permet pas de savoir depuis quand ni de le retrouver. Sert
+// à l'affichage ("Soldé le …", écran Expirés) et à la purge automatique
+// des vieux bons soldés (voir db/repository.js, `purgerBonsAnciens`).
+export function dateDuDernierEvenement(bon, mouvements, overrides) {
+  const evenements = [
+    ...mouvements.map((m) => ({ createdAt: m.createdAt, date: m.date })),
+    ...overrides.map((o) => ({ createdAt: o.createdAt, date: o.createdAt.slice(0, 10) })),
+  ].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  return evenements[0]?.date ?? bon.dateAchat;
+}

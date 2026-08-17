@@ -65,6 +65,20 @@ export function dateExpirationParDefaut(dateAchat = aujourdhuiParis()) {
   return `${y}-${m}-${d}`;
 }
 
+// Ajoute (ou retire, si négatif) un nombre de mois à une date 'YYYY-MM-DD'.
+// Sert à la purge automatique des vieux bons (voir db/repository.js,
+// `purgerBonsAnciens`) : "expiré depuis plus de 13 mois", "soldé depuis
+// plus de 12 mois".
+export function ajouterMois(dateStr, nombreDeMois) {
+  const [annee, mois, jour] = dateStr.split('-').map(Number);
+  const date = new Date(annee, mois - 1, jour);
+  date.setMonth(date.getMonth() + nombreDeMois);
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 // Inverse de dateExpirationParDefaut : déduit la date d'achat à partir de
 // la date d'expiration lue sur le PDF (date de fin − 1 an + 1 jour), pour
 // les bons dont la validité est "1 an à compter de l'achat" et qui n'imprime

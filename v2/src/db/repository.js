@@ -21,8 +21,9 @@
 //     limite assumée et documentée (voir le rapport livré avec cette
 //     construction), pas un oubli.
 import { supabase } from '../supabase/client.js';
-import { calculerSolde, calculerStatut } from './solde.js';
-import { cleTriUrgence } from '../utils/dates.js';
+import { calculerSolde, calculerStatut, dateDuDernierEvenement } from './solde.js';
+import { ajouterMois, aujourdhuiParis, cleTriUrgence } from '../utils/dates.js';
+import { ajouterEntree } from '../diagnostic/journal.js';
 
 export class DepassementError extends Error {
   constructor(soldeDisponible) {
@@ -578,6 +579,56 @@ export async function supprimerBonDefinitivement(id) {
   await supprimerPdf(id).catch(() => {});
   const { error } = await supabase.from('bons').delete().eq('id', id);
   leverSiErreur(error);
+}
+
+// Purge automatique des vieux bons expirés/soldés — jamais des bons
+// clôturés ("Terminé"), qui restent sous contrôle manuel (bouton
+// "Reprendre" de l'écran Expirés). Critère demandé :
+//   - expiré : date d'expiration + 13 mois dépassée
+//   - soldé (montant à 0) : date du dernier évènement qui l'a amené à 0
+//     (dépense ou correction) + 12 mois dépassée
+function doitEtrePurge(bon) {
+  const aujourdhui = aujourdhuiParis();
+  if (bon.statut === 'expire') {
+    return ajouterMois(bon.dateExpiration, 13) <= aujourdhui;
+  }
+  if (bon.statut === 'solde') {
+    const date = dateDuDernierEvenement(bon, bon.mouvements, bon.overrides);
+    return ajouterMois(date, 12) <= aujourdhui;
+  }
+  return false;
+}
+
+// Pas un vrai cron serveur : lancée une fois par ouverture de session côté
+// client (voir App.jsx). La purge n'a donc lieu qu'aux moments où
+// quelqu'un ouvre l'application, pas exactement au jour du seuil si
+// personne ne l'ouvre entre-temps — compromis assumé pour une appli à deux
+// personnes sans backend applicatif dédié. Chaque suppression est
+// journalisée (écran Diagnostic) pour garder une trace de ce qui a
+// disparu et pourquoi.
+export async function purgerBonsAnciens() {
+  const tous = await listerBonsEnrichis();
+  const aPurger = tous.filter(doitEtrePurge);
+
+  for (const bon of aPurger) {
+    const motif = bon.statut === 'expire' ? 'expiré depuis plus de 13 mois' : 'soldé depuis plus de 12 mois';
+    try {
+      await supprimerBonDefinitivement(bon.id);
+      ajouterEntree(
+        'purge-automatique',
+        `Bon supprimé (${motif}) : ${bon.enseigne?.nom ?? '?'} — ${bon.code}`,
+        null
+      );
+    } catch (e) {
+      ajouterEntree(
+        'purge-automatique',
+        `Échec de la suppression automatique du bon ${bon.id} (${bon.enseigne?.nom ?? '?'} — ${bon.code}) : ${e?.message}`,
+        e?.stack
+      );
+    }
+  }
+
+  return aPurger.length;
 }
 
 // ---- PDF (Supabase Storage, bucket privé "pdfs") ---------------------------

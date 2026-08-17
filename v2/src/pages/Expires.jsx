@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { listerBonsEnrichis, reactiverBon, terminerBon } from '../db/repository.js';
+import { dateDuDernierEvenement } from '../db/solde.js';
 import { centimesVersAffichage } from '../utils/money.js';
 import { formatDateAffichage } from '../utils/dates.js';
 import { useAuth } from '../auth/AuthContext.jsx';
@@ -14,20 +15,17 @@ import ModaleCorrigerSolde from '../components/ModaleCorrigerSolde.jsx';
 // bon...). Même traitement pour les trois : visibles ici, avec une date
 // pertinente et un bouton pour revenir en arrière.
 //
+// Le solde affiché ailleurs dans l'appli (0 € pour un bon soldé ou
+// clôturé) ne suffit pas à s'y retrouver quand plusieurs bons changent de
+// catégorie au fil du temps — la carte montre donc ici le code du bon et
+// son montant initial en plus de l'enseigne et de la date.
+//
 // "Corriger le solde" reste le seul vrai moyen de rattraper un solde tombé
 // à 0 par erreur : une fois une correction manuelle enregistrée, elle prime
 // sur le montant initial (voir db/solde.js) — modifier le montant initial
 // depuis l'écran "Modifier" ne changerait rien à l'affichage. "Modifier"
 // reste utile à côté pour corriger, par exemple, une date d'expiration
 // erronée sur un bon expiré par erreur.
-function dateDeSolde(bon) {
-  const evenements = [
-    ...bon.mouvements.map((m) => ({ createdAt: m.createdAt, date: m.date })),
-    ...bon.overrides.map((o) => ({ createdAt: o.createdAt, date: o.createdAt.slice(0, 10) })),
-  ].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
-  return evenements[0]?.date ?? bon.dateAchat;
-}
-
 export default function Expires() {
   const { identite } = useAuth();
   const [bons, setBons] = useState(null);
@@ -69,8 +67,13 @@ export default function Expires() {
                 <Link to={`/bon/${bon.id}`} className="enseigne">
                   {bon.enseigne?.nom}
                 </Link>
-                <span className="solde">{centimesVersAffichage(bon.solde)}</span>
+                <span className="solde">{centimesVersAffichage(bon.montantInitial)}</span>
               </div>
+              {bon.code && (
+                <div className="codes">
+                  <span className="code">{bon.code}</span>
+                </div>
+              )}
               {bon.statut === 'expire' && (
                 <span className="pilule-statut jaune">
                   Expiré le {formatDateAffichage(bon.dateExpiration)}
@@ -78,7 +81,7 @@ export default function Expires() {
               )}
               {bon.statut === 'solde' && (
                 <span className="pilule-statut">
-                  Soldé le {formatDateAffichage(dateDeSolde(bon))}
+                  Soldé le {formatDateAffichage(dateDuDernierEvenement(bon, bon.mouvements, bon.overrides))}
                 </span>
               )}
               {bon.statut === 'termine' && (
