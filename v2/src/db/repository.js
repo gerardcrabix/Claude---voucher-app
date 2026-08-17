@@ -191,6 +191,8 @@ export async function supprimerEnseigne(id) {
 // (identite n'est plus utilisé pour filtrer — Row Level Security s'en
 // charge déjà côté serveur — gardé pour ne pas changer la signature.)
 
+// Historique d'UN bon (fiche détail) : 3 requêtes, indépendantes du nombre
+// total de bons — pas de souci de performance ici.
 async function chargerHistorique(bonId) {
   const [mvts, ovr, mods] = await Promise.all([
     supabase.from('mouvements').select('*').eq('bon_id', bonId),
@@ -204,6 +206,56 @@ async function chargerHistorique(bonId) {
     mouvements: mvts.data.map(mouvementDepuisRow),
     overrides: ovr.data.map(overrideDepuisRow),
     modifications: mods.data.map(modificationDepuisRow),
+  };
+}
+
+// Historique de PLUSIEURS bons en une seule fois — 3 requêtes au total,
+// quel que soit le nombre de bons, au lieu de 3 requêtes PAR bon. C'est le
+// correctif d'un vrai problème de performance : `listerBonsEnrichis` et
+// `getSoldeActifParEnseigne` appelaient `chargerHistorique` une fois par
+// bon (donc 3×N requêtes réseau, chacune avec son propre aller-retour et sa
+// propre évaluation RLS), ce qui devenait très lentement perceptible dès
+// que le nombre de bons grandissait — et se déclenchait en plus à chaque
+// évènement Realtime, potentiellement plusieurs fois par minute. Signalé
+// par un ralentissement sévère de l'application (voir le rapport de
+// livraison) après le tout premier test réel avec des données un peu
+// nombreuses.
+async function chargerHistoriqueGroupe(bonIds) {
+  const vide = { mouvements: new Map(), overrides: new Map(), modifications: new Map() };
+  if (bonIds.length === 0) return vide;
+
+  const [mvts, ovr, mods] = await Promise.all([
+    supabase.from('mouvements').select('*').in('bon_id', bonIds),
+    supabase.from('overrides').select('*').in('bon_id', bonIds),
+    supabase.from('modifications').select('*').in('bon_id', bonIds),
+  ]);
+  leverSiErreur(mvts.error);
+  leverSiErreur(ovr.error);
+  leverSiErreur(mods.error);
+
+  function grouperParBon(lignes, convertir) {
+    const parBon = new Map();
+    for (const ligne of lignes) {
+      const obj = convertir(ligne);
+      const liste = parBon.get(obj.bonId);
+      if (liste) liste.push(obj);
+      else parBon.set(obj.bonId, [obj]);
+    }
+    return parBon;
+  }
+
+  return {
+    mouvements: grouperParBon(mvts.data, mouvementDepuisRow),
+    overrides: grouperParBon(ovr.data, overrideDepuisRow),
+    modifications: grouperParBon(mods.data, modificationDepuisRow),
+  };
+}
+
+function historiqueDuBon(groupe, bonId) {
+  return {
+    mouvements: groupe.mouvements.get(bonId) ?? [],
+    overrides: groupe.overrides.get(bonId) ?? [],
+    modifications: groupe.modifications.get(bonId) ?? [],
   };
 }
 
@@ -223,13 +275,13 @@ export async function listerBonsEnrichis(_identite) {
 
   const enseignesParId = new Map(enseignesData.map((e) => [e.id, enseigneDepuisRow(e)]));
   const bons = bonsData.map(bonDepuisRow);
+  const groupe = await chargerHistoriqueGroupe(bons.map((b) => b.id));
 
-  const enrichis = await Promise.all(
-    bons.map(async (b) => enrichir(b, await chargerHistorique(b.id)))
-  );
-
-  return enrichis
-    .map((b) => ({ ...b, enseigne: enseignesParId.get(b.enseigneId) ?? null }))
+  return bons
+    .map((b) => ({
+      ...enrichir(b, historiqueDuBon(groupe, b.id)),
+      enseigne: enseignesParId.get(b.enseigneId) ?? null,
+    }))
     .sort((a, b) => cleTriUrgence(a.dateExpiration).localeCompare(cleTriUrgence(b.dateExpiration)));
 }
 
@@ -250,7 +302,8 @@ export async function getSoldeActifParEnseigne(enseigneId, _identite) {
   const { data, error } = await supabase.from('bons').select('*').eq('enseigne_id', enseigneId);
   leverSiErreur(error);
   const bons = data.map(bonDepuisRow);
-  const enrichis = await Promise.all(bons.map(async (b) => enrichir(b, await chargerHistorique(b.id))));
+  const groupe = await chargerHistoriqueGroupe(bons.map((b) => b.id));
+  const enrichis = bons.map((b) => enrichir(b, historiqueDuBon(groupe, b.id)));
   const actifs = enrichis.filter((b) => b.statut === 'actif');
 
   if (actifs.length === 0) {
@@ -269,14 +322,48 @@ export async function getSoldeActifParEnseigne(enseigneId, _identite) {
   };
 }
 
-export async function listerPastillesEnseignes(identite) {
-  const enseignes = await listerEnseignes();
-  const pastilles = await Promise.all(
-    enseignes.map(async (e) => ({
+// Une seule volée de requêtes pour toutes les enseignes à la fois (au lieu
+// d'appeler `getSoldeActifParEnseigne` une fois par enseigne, qui aurait
+// réintroduit le même problème de performance que `listerBonsEnrichis` —
+// voir le commentaire de `chargerHistoriqueGroupe`).
+export async function listerPastillesEnseignes(_identite) {
+  const [{ data: enseignesData, error: errEns }, { data: bonsData, error: errBons }] = await Promise.all([
+    supabase.from('enseignes').select('*'),
+    supabase.from('bons').select('*'),
+  ]);
+  leverSiErreur(errEns);
+  leverSiErreur(errBons);
+
+  const enseignes = enseignesData.map(enseigneDepuisRow);
+  const bons = bonsData.map(bonDepuisRow);
+  const groupe = await chargerHistoriqueGroupe(bons.map((b) => b.id));
+  const enrichis = bons.map((b) => enrichir(b, historiqueDuBon(groupe, b.id)));
+
+  const actifsParEnseigne = new Map();
+  for (const b of enrichis) {
+    if (b.statut !== 'actif') continue;
+    const liste = actifsParEnseigne.get(b.enseigneId);
+    if (liste) liste.push(b);
+    else actifsParEnseigne.set(b.enseigneId, [b]);
+  }
+
+  const pastilles = enseignes.map((e) => {
+    const actifs = actifsParEnseigne.get(e.id) ?? [];
+    if (actifs.length === 0) {
+      return { enseigne: e, totalCentimes: 0, nombreBons: 0, prochaineExpiration: null };
+    }
+    const totalCentimes = actifs.reduce((s, b) => s + b.solde, 0);
+    const avecDate = actifs
+      .filter((b) => b.dateExpiration)
+      .sort((a, b) => a.dateExpiration.localeCompare(b.dateExpiration));
+    return {
       enseigne: e,
-      ...(await getSoldeActifParEnseigne(e.id, identite)),
-    }))
-  );
+      totalCentimes,
+      nombreBons: actifs.length,
+      prochaineExpiration: avecDate[0]?.dateExpiration ?? null,
+    };
+  });
+
   return pastilles.filter((p) => p.nombreBons > 0);
 }
 
@@ -331,13 +418,12 @@ export async function listerHistoriqueParEnseigne(enseigneId) {
   const { data, error } = await supabase.from('bons').select('*').eq('enseigne_id', enseigneId);
   leverSiErreur(error);
   const bons = data.map(bonDepuisRow);
+  const groupe = await chargerHistoriqueGroupe(bons.map((b) => b.id));
 
-  const parBon = await Promise.all(
-    bons.map(async (b) => {
-      const h = await chargerHistorique(b.id);
-      return calculerLignesHistoriqueBon(b, h.mouvements, h.overrides, h.modifications);
-    })
-  );
+  const parBon = bons.map((b) => {
+    const h = historiqueDuBon(groupe, b.id);
+    return calculerLignesHistoriqueBon(b, h.mouvements, h.overrides, h.modifications);
+  });
 
   return parBon.flat().sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
 }
