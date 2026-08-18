@@ -392,17 +392,32 @@ p {
   width: fit-content;
 }
 
+.bloc-code-barres {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.etiquette-code-barres {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--couleur-accent-fonce);
+}
+
 .image-code-barres {
   align-self: center;
-  max-width: 240px;
+  max-width: 280px;
   width: 100%;
   /* Marge blanche autour de l'image (zone de silence) : les lecteurs de
      code-barres/QR en ont besoin pour scanner correctement, et le bitmap
      généré n'en inclut pas lui-même. */
-  padding: 12px;
+  padding: 14px;
   background: #ffffff;
   border-radius: 8px;
-  border: 1px solid var(--couleur-bordure);
+  border: 2px solid var(--couleur-accent);
   image-rendering: pixelated;
 }
 

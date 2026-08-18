@@ -38,8 +38,15 @@ export default function BonCard({ bon, onDepenser }) {
       {bon.codeBarresUrl && (
         // Affiché directement sur la carte (pas seulement dans la fiche
         // détail) : c'est ce qu'on montre en caisse, il ne doit pas falloir
-        // un appui de plus pour l'avoir sous les yeux.
-        <img src={bon.codeBarresUrl} alt="Code-barres ou QR code du bon" className="image-code-barres" />
+        // un appui de plus pour l'avoir sous les yeux. L'étiquette et le
+        // contour en couleur (voir index.css) existent pour que ce soit
+        // repéré au premier coup d'œil, même par quelqu'un qui ne sait pas
+        // encore que l'accueil montre déjà le code — signalé comme raté par
+        // un vrai test utilisateur.
+        <div className="bloc-code-barres">
+          <span className="etiquette-code-barres">Scannez ici en caisse ↓</span>
+          <img src={bon.codeBarresUrl} alt="Code-barres ou QR code du bon" className="image-code-barres" />
+        </div>
       )}
       <span className={`expiration ${urgent ? 'urgent' : ''}`}>
         {bon.dateExpiration

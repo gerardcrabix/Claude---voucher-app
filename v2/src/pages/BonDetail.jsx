@@ -69,7 +69,7 @@ export default function BonDetail() {
   }
 
   async function surTerminer() {
-    await terminerBon(id);
+    await terminerBon(id, identite);
     await charger();
   }
 

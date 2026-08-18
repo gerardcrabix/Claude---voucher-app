@@ -27,7 +27,7 @@ import ModaleCorrigerSolde from '../components/ModaleCorrigerSolde.jsx';
 // reste utile à côté pour corriger, par exemple, une date d'expiration
 // erronée sur un bon expiré par erreur.
 export default function Expires() {
-  const { identite } = useAuth();
+  const { identite, libelleIdentite } = useAuth();
   const [bons, setBons] = useState(null);
   const [bonACorriger, setBonACorriger] = useState(null);
 
@@ -39,7 +39,7 @@ export default function Expires() {
   useSyncBons(charger);
 
   async function surTerminer(id) {
-    await terminerBon(id);
+    await terminerBon(id, identite);
     await charger();
   }
 
@@ -87,6 +87,7 @@ export default function Expires() {
               {bon.statut === 'termine' && (
                 <span className="pilule-statut neutre">
                   {bon.archivedAt ? `Clôturé le ${formatDateAffichage(bon.archivedAt.slice(0, 10))}` : 'Clôturé'}
+                  {bon.archivedBy && ` par ${libelleIdentite(bon.archivedBy)}`}
                 </span>
               )}
               <div className="actions">
