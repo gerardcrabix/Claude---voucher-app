@@ -310,6 +310,39 @@ p {
   margin-top: 28px;
 }
 
+/* Titre de groupe = aussi un bouton de filtre : un appui isole cette
+   enseigne (les bons des autres se masquent, leurs titres restent pour
+   pouvoir basculer directement vers une autre), un second appui remet
+   tout affiché. */
+.titre-groupe-enseigne {
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 6px 8px;
+  margin: 0 -8px;
+  border-radius: var(--rayon);
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.titre-groupe-enseigne .nombre-bons {
+  margin-left: auto;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--couleur-texte-discret);
+}
+
+.titre-groupe-enseigne.actif {
+  background: var(--couleur-accent-clair);
+  color: var(--couleur-accent-fonce);
+}
+
+.titre-groupe-enseigne.actif .nombre-bons {
+  color: var(--couleur-accent-fonce);
+}
+
 .carte-bon {
   background: var(--couleur-carte);
   border-radius: var(--rayon);
@@ -541,12 +574,20 @@ p {
 
 .carte-bon .actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-top: 4px;
 }
 
+/* `flex: 1` seul ne suffit pas à empêcher un bouton de déborder du cadre :
+   par défaut, un item flex refuse de rétrécir sous la largeur de son
+   propre texte (min-width: auto), même avec flex-shrink actif — repéré
+   avec 3-4 boutons sur une carte de largeur téléphone. `flex-basis` fixe
+   + `min-width: 0` fait passer les boutons à la ligne suivante (grâce à
+   flex-wrap ci-dessus) au lieu de sortir du cadre. */
 .carte-bon .actions .bouton-grand {
-  flex: 1;
+  flex: 1 1 130px;
+  min-width: 0;
 }
 
 /* ---- Formulaires ---- */

@@ -38,6 +38,12 @@ export default function Expires() {
   const [bons, setBons] = useState(null);
   const [bonACorriger, setBonACorriger] = useState(null);
   const [historiqueOuvertId, setHistoriqueOuvertId] = useState(null);
+  // Nom de l'enseigne (titre de groupe) touché : filtre la liste sur cette
+  // seule enseigne, un second appui sur la même remet tout affiché. Les
+  // titres des autres enseignes restent visibles (pas leurs bons) pour
+  // pouvoir basculer directement de l'une à l'autre sans repasser par
+  // "toutes".
+  const [filtreEnseigne, setFiltreEnseigne] = useState(null);
 
   async function charger() {
     const tous = await listerBonsEnrichis(identite);
@@ -58,6 +64,10 @@ export default function Expires() {
 
   function basculerHistorique(id) {
     setHistoriqueOuvertId((prec) => (prec === id ? null : id));
+  }
+
+  function basculerFiltreEnseigne(cle) {
+    setFiltreEnseigne((prec) => (prec === cle ? null : cle));
   }
 
   // Date qui explique pourquoi ce bon est ici (unique pour chaque statut),
@@ -111,21 +121,32 @@ export default function Expires() {
           <p>Aucun bon expiré, soldé ou clôturé.</p>
         </div>
       ) : (
-        groupes.map((groupe) => (
-          <section key={groupe.cle} className="groupe-enseigne-expires">
-            <h2 className="enseigne-avec-logo">
-              {groupe.logoUrl && (
-                <img
-                  className="logo-enseigne"
-                  src={groupe.logoUrl}
-                  alt=""
-                  onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                />
-              )}
-              <span>{groupe.nom}</span>
-            </h2>
-            <div className="liste-bons">
-              {groupe.bons.map((bon) => {
+        groupes.map((groupe) => {
+          const filtreActif = filtreEnseigne === groupe.cle;
+          const groupeVisible = filtreEnseigne === null || filtreActif;
+          return (
+            <section key={groupe.cle} className="groupe-enseigne-expires">
+              <h2>
+                <button
+                  type="button"
+                  className={`titre-groupe-enseigne enseigne-avec-logo ${filtreActif ? 'actif' : ''}`}
+                  onClick={() => basculerFiltreEnseigne(groupe.cle)}
+                >
+                  {groupe.logoUrl && (
+                    <img
+                      className="logo-enseigne"
+                      src={groupe.logoUrl}
+                      alt=""
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                    />
+                  )}
+                  <span>{groupe.nom}</span>
+                  <span className="nombre-bons">{groupe.bons.length}</span>
+                </button>
+              </h2>
+              {groupeVisible && (
+                <div className="liste-bons">
+                  {groupe.bons.map((bon) => {
                 const { date, auteur } = infosPertinentes.get(bon.id) ?? {};
                 const historiqueOuvert = historiqueOuvertId === bon.id;
                 const lignesHistorique = historiqueOuvert ? construireLignesHistorique([bon]) : [];
@@ -227,9 +248,11 @@ export default function Expires() {
                   </div>
                 );
               })}
-            </div>
-          </section>
-        ))
+                </div>
+              )}
+            </section>
+          );
+        })
       )}
 
       {bonACorriger && (
