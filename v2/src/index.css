@@ -302,6 +302,14 @@ p {
   gap: 12px;
 }
 
+/* Onglet Expirés : bons groupés par enseigne (retrouver LE bon qu'on
+   vient de vider en caisse, pas juste "un bon Carrefour à 0 €" parmi
+   plusieurs). Un seul écart au-dessus de chaque enseigne suivante — la
+   première n'a pas besoin de respirer sous le titre de page. */
+.groupe-enseigne-expires + .groupe-enseigne-expires {
+  margin-top: 28px;
+}
+
 .carte-bon {
   background: var(--couleur-carte);
   border-radius: var(--rayon);
