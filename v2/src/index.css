@@ -446,6 +446,14 @@ p {
   color: var(--couleur-accent-fonce);
 }
 
+.etiquette-code-barres.secondaire {
+  font-size: 0.72rem;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--couleur-texte-discret);
+}
+
 .lien-pdf-carte {
   align-self: center;
   display: inline-flex;
@@ -472,6 +480,42 @@ p {
   border-radius: 8px;
   border: 2px solid var(--couleur-accent);
   image-rendering: pixelated;
+  cursor: pointer;
+}
+
+/* Plein écran au tap sur le code-barres/QR de l'accueil (voir
+   BonCard.jsx) : évite d'avoir à zoomer toute l'appli avec deux doigts
+   pour bien voir le code en caisse. Fermeture au tap n'importe où, pas de
+   minuteur automatique — en caisse, le temps nécessaire au scan n'est
+   jamais prévisible (premier passage raté, lecteur qui traîne...). */
+.zoom-code-barres {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 24px;
+}
+
+.zoom-code-barres img {
+  width: 100%;
+  max-width: 480px;
+  image-rendering: pixelated;
+}
+
+.enseigne-zoom {
+  font-weight: 700;
+  font-size: 1.3rem;
+  color: var(--couleur-texte);
+}
+
+.etiquette-zoom {
+  font-size: 0.85rem;
+  color: var(--couleur-texte-discret);
 }
 
 .carte-bon .pin {

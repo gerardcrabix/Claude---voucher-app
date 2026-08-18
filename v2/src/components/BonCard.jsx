@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { centimesVersAffichage } from '../utils/money.js';
 import { formatDateAffichage, estSousLeSeuil, estExpire } from '../utils/dates.js';
@@ -9,6 +10,13 @@ import { useAuth } from '../auth/AuthContext.jsx';
 export default function BonCard({ bon, pdfUrl, onDepenser }) {
   const navigate = useNavigate();
   const { libelleIdentite } = useAuth();
+  // Agrandi en plein écran au tap plutôt que forcer à zoomer toute l'appli
+  // avec deux doigts pour lire le code en caisse. Fermeture manuelle (tap
+  // n'importe où), pas de minuteur automatique : en caisse, le temps
+  // nécessaire au scan n'est jamais prévisible (premier passage raté,
+  // lecteur qui traîne...) — un délai fixe risquerait de refermer le code
+  // au mauvais moment.
+  const [codeAgrandi, setCodeAgrandi] = useState(false);
   const urgent = estSousLeSeuil(bon.dateExpiration);
   const expire = estExpire(bon.dateExpiration);
   const prive = bon.visibilite && bon.visibilite !== 'partage';
@@ -63,7 +71,23 @@ export default function BonCard({ bon, pdfUrl, onDepenser }) {
         // un vrai test utilisateur.
         <div className="bloc-code-barres">
           <span className="etiquette-code-barres">Scannez ici en caisse ↓</span>
-          <img src={bon.codeBarresUrl} alt="Code-barres ou QR code du bon" className="image-code-barres" />
+          <img
+            src={bon.codeBarresUrl}
+            alt="Code-barres ou QR code du bon — toucher pour agrandir"
+            className="image-code-barres"
+            onClick={(e) => {
+              e.stopPropagation();
+              setCodeAgrandi(true);
+            }}
+          />
+          <span className="etiquette-code-barres secondaire">Touchez pour agrandir</span>
+        </div>
+      )}
+      {codeAgrandi && (
+        <div className="zoom-code-barres" onClick={(e) => { e.stopPropagation(); setCodeAgrandi(false); }}>
+          <span className="enseigne-zoom">{bon.enseigne?.nom}</span>
+          <img src={bon.codeBarresUrl} alt="Code-barres ou QR code du bon, agrandi" />
+          <span className="etiquette-zoom">Touchez pour fermer</span>
         </div>
       )}
       {pdfUrl && (
