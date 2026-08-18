@@ -12,13 +12,29 @@ export default function BonCard({ bon, pdfUrl, onDepenser }) {
   const urgent = estSousLeSeuil(bon.dateExpiration);
   const expire = estExpire(bon.dateExpiration);
   const prive = bon.visibilite && bon.visibilite !== 'partage';
+  // Un vrai code-barres extrait de PDF (Carrefour notamment) peut faire
+  // 20-25 caractères — sans ça, le PIN saute à la ligne suivante sur un
+  // écran de téléphone (repéré sur iPhone). Un code court garde sa taille
+  // normale ; un code long rétrécit ET fait rétrécir le PIN avec lui (même
+  // taille pour les deux, sinon ça détonne visuellement).
+  const codeCompact = bon.code && bon.code.length > 14;
 
   return (
     <div className="carte-bon" onClick={() => navigate(`/bon/${bon.id}`)}>
       <div className="ligne-haut">
-        <span className="enseigne">
-          {bon.enseigne?.nom ?? 'Enseigne'}
-          {prive && <span className="pilule-statut" style={{ marginLeft: 6 }}>{libelleIdentite(bon.visibilite)} uniquement</span>}
+        <span className="enseigne-avec-logo">
+          {bon.enseigne?.logoUrl && (
+            <img
+              className="logo-enseigne"
+              src={bon.enseigne.logoUrl}
+              alt=""
+              onError={(e) => { e.currentTarget.style.display = 'none'; }}
+            />
+          )}
+          <span className="enseigne">
+            {bon.enseigne?.nom ?? 'Enseigne'}
+            {prive && <span className="pilule-statut" style={{ marginLeft: 6 }}>{libelleIdentite(bon.visibilite)} uniquement</span>}
+          </span>
         </span>
         <span className="montant-carte">
           <span className="solde">{centimesVersAffichage(bon.solde)}</span>
@@ -32,13 +48,9 @@ export default function BonCard({ bon, pdfUrl, onDepenser }) {
       {(bon.code || bon.pin) && (
         <div className="codes">
           {bon.code && (
-            // Un vrai code-barres extrait de PDF (Carrefour notamment) peut
-            // faire 20-25 caractères — sans ça, le PIN saute à la ligne
-            // suivante sur un écran de téléphone (repéré sur iPhone). Un
-            // code court garde sa taille normale, seuls les longs rétrécissent.
-            <span className={`code ${bon.code.length > 14 ? 'compact' : ''}`}>{bon.code}</span>
+            <span className={`code ${codeCompact ? 'compact' : ''}`}>{bon.code}</span>
           )}
-          {bon.pin && <span className="pin">PIN {bon.pin}</span>}
+          {bon.pin && <span className={`pin ${codeCompact ? 'compact' : ''}`}>PIN {bon.pin}</span>}
         </div>
       )}
       {bon.codeBarresUrl && (

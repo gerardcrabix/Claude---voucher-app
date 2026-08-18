@@ -319,6 +319,13 @@ p {
   gap: 8px;
 }
 
+.enseigne-avec-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
 .carte-bon .enseigne {
   font-weight: 700;
   font-size: 1.05rem;
@@ -409,8 +416,11 @@ p {
    pose cette classe à partir de 14 caractères — un vrai code-barres
    extrait de PDF en fait facilement 20 à 25) : un code court comme
    "ABC123456" reste à sa taille normale, seuls les longs rétrécissent, au
-   lieu de rapetisser tout le monde pour le pire cas. */
-.carte-bon .code.compact {
+   lieu de rapetisser tout le monde pour le pire cas. Le PIN reçoit la même
+   classe en même temps que le code (voir BonCard.jsx) : les deux doivent
+   toujours rester à la même taille l'un que l'autre, sinon ça détonne. */
+.carte-bon .code.compact,
+.carte-bon .pin.compact {
   font-size: 0.74rem;
   letter-spacing: 0.2px;
   padding: 4px 6px;
