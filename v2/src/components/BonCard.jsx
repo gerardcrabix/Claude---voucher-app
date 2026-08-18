@@ -31,7 +31,13 @@ export default function BonCard({ bon, pdfUrl, onDepenser }) {
       </div>
       {(bon.code || bon.pin) && (
         <div className="codes">
-          {bon.code && <span className="code">{bon.code}</span>}
+          {bon.code && (
+            // Un vrai code-barres extrait de PDF (Carrefour notamment) peut
+            // faire 20-25 caractères — sans ça, le PIN saute à la ligne
+            // suivante sur un écran de téléphone (repéré sur iPhone). Un
+            // code court garde sa taille normale, seuls les longs rétrécissent.
+            <span className={`code ${bon.code.length > 14 ? 'compact' : ''}`}>{bon.code}</span>
+          )}
           {bon.pin && <span className="pin">PIN {bon.pin}</span>}
         </div>
       )}

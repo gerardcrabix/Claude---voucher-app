@@ -377,7 +377,14 @@ p {
 
 .carte-bon .codes {
   display: flex;
-  flex-wrap: wrap;
+  /* Volontairement jamais de retour à la ligne, même sur un long code
+     (certains codes-barres extraits de PDF font 25 caractères et plus) :
+     un PIN qui saute à la ligne du dessous casse la lecture d'un coup
+     d'œil. Le code rétrécit avant de rejoindre la ligne suivante — voir
+     .carte-bon .code ci-dessous — et peut défiler horizontalement en
+     dernier recours plutôt que de forcer un retour à la ligne. */
+  flex-wrap: nowrap;
+  align-items: center;
   gap: 8px;
 }
 
@@ -389,6 +396,28 @@ p {
   padding: 4px 8px;
   font-size: 0.95rem;
   letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.carte-bon .code {
+  min-width: 0;
+  overflow-x: auto;
+  flex: 1 1 auto;
+}
+
+/* Réduit seulement pour un code réellement long (voir BonCard.jsx, qui
+   pose cette classe à partir de 14 caractères — un vrai code-barres
+   extrait de PDF en fait facilement 20 à 25) : un code court comme
+   "ABC123456" reste à sa taille normale, seuls les longs rétrécissent, au
+   lieu de rapetisser tout le monde pour le pire cas. */
+.carte-bon .code.compact {
+  font-size: 0.74rem;
+  letter-spacing: 0.2px;
+  padding: 4px 6px;
+}
+
+.carte-bon .pin {
+  flex: 0 0 auto;
   width: fit-content;
 }
 
