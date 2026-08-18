@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { listerBonsEnrichis, reactiverBon, terminerBon } from '../db/repository.js';
-import { dateDuDernierEvenement } from '../db/solde.js';
+import { dernierEvenementSolde } from '../db/solde.js';
 import { centimesVersAffichage } from '../utils/money.js';
 import { formatDateAffichage } from '../utils/dates.js';
 import { useAuth } from '../auth/AuthContext.jsx';
@@ -79,11 +79,14 @@ export default function Expires() {
                   Expiré le {formatDateAffichage(bon.dateExpiration)}
                 </span>
               )}
-              {bon.statut === 'solde' && (
-                <span className="pilule-statut">
-                  Soldé le {formatDateAffichage(dateDuDernierEvenement(bon, bon.mouvements, bon.overrides))}
-                </span>
-              )}
+              {bon.statut === 'solde' && (() => {
+                const { date, auteur } = dernierEvenementSolde(bon, bon.mouvements, bon.overrides);
+                return (
+                  <span className="pilule-statut">
+                    Soldé le {formatDateAffichage(date)}{auteur && ` par ${libelleIdentite(auteur)}`}
+                  </span>
+                );
+              })()}
               {bon.statut === 'termine' && (
                 <span className="pilule-statut neutre">
                   {bon.archivedAt ? `Clôturé le ${formatDateAffichage(bon.archivedAt.slice(0, 10))}` : 'Clôturé'}

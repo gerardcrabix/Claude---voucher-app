@@ -21,7 +21,7 @@
 //     limite assumée et documentée (voir le rapport livré avec cette
 //     construction), pas un oubli.
 import { supabase } from '../supabase/client.js';
-import { calculerSolde, calculerStatut, dateDuDernierEvenement } from './solde.js';
+import { calculerSolde, calculerStatut, dernierEvenementSolde } from './solde.js';
 import { ajouterMois, aujourdhuiParis, cleTriUrgence } from '../utils/dates.js';
 import { ajouterEntree } from '../diagnostic/journal.js';
 
@@ -594,7 +594,7 @@ function doitEtrePurge(bon) {
     return ajouterMois(bon.dateExpiration, 13) <= aujourdhui;
   }
   if (bon.statut === 'solde') {
-    const date = dateDuDernierEvenement(bon, bon.mouvements, bon.overrides);
+    const { date } = dernierEvenementSolde(bon, bon.mouvements, bon.overrides);
     return ajouterMois(date, 12) <= aujourdhui;
   }
   return false;
