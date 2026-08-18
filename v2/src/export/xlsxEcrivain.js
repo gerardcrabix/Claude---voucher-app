@@ -106,9 +106,7 @@ function celluleXml(valeur, ref) {
   return `<c r="${ref}" t="inlineStr"><is><t xml:space="preserve">${echapperXml(valeur)}</t></is></c>`;
 }
 
-// `lignes` : tableau de tableaux (une ligne = un tableau de cellules,
-// nombre ou texte). La première ligne sert généralement d'en-têtes.
-export function construireClasseurXlsx(nomFeuille, lignes) {
+function feuilleXml(lignes) {
   const lignesXml = lignes
     .map((ligne, i) => {
       const numLigne = i + 1;
@@ -119,16 +117,55 @@ export function construireClasseurXlsx(nomFeuille, lignes) {
     })
     .join('');
 
-  const sheetXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n`
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n`
     + `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">`
     + `<sheetData>${lignesXml}</sheetData></worksheet>`;
+}
+
+// `feuilles` : tableau de { nom, lignes } — une entrée par onglet du
+// classeur (ex. un onglet "Bons", un onglet "Historique"). `lignes` : un
+// tableau de tableaux (une ligne = un tableau de cellules, nombre ou
+// texte) ; la première ligne sert généralement d'en-têtes.
+//
+// Accepte aussi l'ancienne forme à deux arguments (nomFeuille, lignes) —
+// un seul onglet — pour ne pas casser un appel existant qui ne se sert pas
+// de plusieurs feuilles.
+export function construireClasseurXlsx(feuilles, lignesUnique) {
+  if (typeof feuilles === 'string') {
+    feuilles = [{ nom: feuilles, lignes: lignesUnique }];
+  }
+
+  const fichiersFeuilles = [];
+  const overridesFeuilles = [];
+  const entreesFeuilles = [];
+  const relsFeuilles = [];
+
+  feuilles.forEach((feuille, i) => {
+    const idx = i + 1;
+    fichiersFeuilles.push({
+      nom: `xl/worksheets/sheet${idx}.xml`,
+      contenu: texteVersOctets(feuilleXml(feuille.lignes)),
+    });
+    overridesFeuilles.push(
+      `<Override PartName="/xl/worksheets/sheet${idx}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`
+    );
+    // Nom d'onglet Excel : 31 caractères max, quelques caractères interdits
+    // (/ \ ? * [ ]) — les noms utilisés dans cette appli ("Bons",
+    // "Historique"...) n'en ont jamais besoin, mais on nettoie quand même
+    // au cas où pour ne jamais produire un classeur invalide.
+    const nomPropre = String(feuille.nom).replace(/[/\\?*[\]]/g, ' ').slice(0, 31) || `Feuille${idx}`;
+    entreesFeuilles.push(`<sheet name="${echapperXml(nomPropre)}" sheetId="${idx}" r:id="rId${idx}"/>`);
+    relsFeuilles.push(
+      `<Relationship Id="rId${idx}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${idx}.xml"/>`
+    );
+  });
 
   const contentTypes = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n`
     + `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">`
     + `<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>`
     + `<Default Extension="xml" ContentType="application/xml"/>`
     + `<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>`
-    + `<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`
+    + overridesFeuilles.join('')
     + `</Types>`;
 
   const rootRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n`
@@ -139,11 +176,11 @@ export function construireClasseurXlsx(nomFeuille, lignes) {
   const workbookXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n`
     + `<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" `
     + `xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">`
-    + `<sheets><sheet name="${echapperXml(nomFeuille)}" sheetId="1" r:id="rId1"/></sheets></workbook>`;
+    + `<sheets>${entreesFeuilles.join('')}</sheets></workbook>`;
 
   const workbookRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n`
     + `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">`
-    + `<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>`
+    + relsFeuilles.join('')
     + `</Relationships>`;
 
   return construireZip([
@@ -151,6 +188,6 @@ export function construireClasseurXlsx(nomFeuille, lignes) {
     { nom: '_rels/.rels', contenu: texteVersOctets(rootRels) },
     { nom: 'xl/workbook.xml', contenu: texteVersOctets(workbookXml) },
     { nom: 'xl/_rels/workbook.xml.rels', contenu: texteVersOctets(workbookRels) },
-    { nom: 'xl/worksheets/sheet1.xml', contenu: texteVersOctets(sheetXml) },
+    ...fichiersFeuilles,
   ]);
 }

@@ -376,7 +376,7 @@ export async function listerPastillesEnseignes(_identite) {
 // donner un "montant avant / montant après" à chaque ligne, même pour les
 // dépenses qui n'ont normalement qu'un montant, pas un avant/après — c'est
 // plus parlant pour relire un historique que la seule valeur dépensée.
-function calculerLignesHistoriqueBon(bon, mouvements, overrides, modifications) {
+function calculerLignesHistoriqueBon(bon, mouvements, overrides, modifications, enseigneNom) {
   const evenements = [
     ...mouvements.map((m) => ({ type: 'depense', ...m })),
     ...overrides.map((o) => ({ type: 'correction', ...o })),
@@ -388,6 +388,7 @@ function calculerLignesHistoriqueBon(bon, mouvements, overrides, modifications) 
     const apres = e.type === 'depense' ? avant - e.montant : e.nouveauSolde;
     solde = apres;
     return {
+      enseigneNom,
       bonCode: bon.code,
       bonId: bon.id,
       date: e.type === 'depense' ? e.date : e.createdAt.slice(0, 10),
@@ -402,6 +403,7 @@ function calculerLignesHistoriqueBon(bon, mouvements, overrides, modifications) 
 
   for (const m of modifications) {
     lignes.push({
+      enseigneNom,
       bonCode: bon.code,
       bonId: bon.id,
       date: m.createdAt.slice(0, 10),
@@ -410,6 +412,24 @@ function calculerLignesHistoriqueBon(bon, mouvements, overrides, modifications) 
       montantAvant: m.montantAvant,
       montantApres: m.montantApres,
       auteur: m.auteur,
+      note: '',
+    });
+  }
+
+  // La clôture d'un bon ne passe par aucune des tables ci-dessus (voir
+  // terminerBon) — sans cette ligne, "qui a changé quoi" resterait muet sur
+  // l'action la plus définitive de toutes.
+  if (bon.archived) {
+    lignes.push({
+      enseigneNom,
+      bonCode: bon.code,
+      bonId: bon.id,
+      date: bon.archivedAt ? bon.archivedAt.slice(0, 10) : bon.dateAchat,
+      createdAt: bon.archivedAt ?? bon.createdAt,
+      type: 'Clôturé',
+      montantAvant: null,
+      montantApres: null,
+      auteur: bon.archivedBy,
       note: '',
     });
   }
@@ -429,6 +449,19 @@ export async function listerHistoriqueParEnseigne(enseigneId) {
   });
 
   return parBon.flat().sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+}
+
+// Historique "à plat" (une ligne par évènement — dépense, correction,
+// changement de montant initial, clôture) pour un ensemble de bons déjà
+// enrichis (voir listerBonsEnrichis, qui attache déjà mouvements/overrides/
+// modifications/enseigne à chaque bon) — pas de nouvelle requête réseau,
+// pure recombinaison de données déjà chargées. Utilisé par l'export complet
+// (pages/Export.jsx) : "qui a changé quoi", sur plusieurs enseignes à la
+// fois.
+export function construireLignesHistorique(bonsEnrichis) {
+  return bonsEnrichis
+    .flatMap((b) => calculerLignesHistoriqueBon(b, b.mouvements, b.overrides, b.modifications, b.enseigne?.nom))
+    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
 }
 
 // ---- Création / cycle de vie d'un bon --------------------------------------
