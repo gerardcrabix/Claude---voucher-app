@@ -665,6 +665,43 @@ export async function obtenirPdf(bonId) {
   return { bonId, filename: bonRow.pdf_filename, contentType: bonRow.pdf_content_type, blob };
 }
 
+// Liens directs vers les PDF pour l'écran d'accueil (voir pages/Accueil.jsx
+// et components/BonCard.jsx) : "voir le PDF" y est un vrai lien <a href>,
+// prêt avant même que la personne ne touche l'écran — pas un bouton qui
+// télécharge le fichier au moment du clic. C'est nécessaire sur iOS/Safari,
+// qui bloque `window.open()` déclenché après un `await` (donc après un
+// téléchargement) comme une pop-up ; un vrai lien déjà prêt, lui, s'ouvre
+// normalement.
+//
+// Une URL signée (juste un lien à durée limitée, pas le fichier lui-même)
+// est beaucoup plus légère qu'un téléchargement complet du PDF — groupée
+// en un seul appel pour tous les bons de l'écran (`createSignedUrls`, au
+// pluriel) plutôt qu'un appel par bon, pour ne pas réintroduire le genre de
+// problème de performance déjà corrigé ailleurs (voir chargerHistoriqueGroupe).
+// Durée large (24h) : pensé pour rester valide le temps d'une sortie
+// courses, pas seulement le temps de la session en cours.
+export async function obtenirUrlsPdf(bonsAvecPdf) {
+  if (bonsAvecPdf.length === 0) return new Map();
+
+  const chemins = bonsAvecPdf.map((b) => b.pdfPath);
+  const { data, error } = await supabase.storage.from('pdfs').createSignedUrls(chemins, 24 * 60 * 60);
+  if (error) {
+    ajouterEntree('repository', `Échec génération des liens PDF : ${error.message}`, null);
+    return new Map();
+  }
+
+  const urlParChemin = new Map(
+    (data ?? [])
+      .filter((d) => !d.error && d.signedUrl)
+      .map((d) => [d.path, d.signedUrl])
+  );
+  return new Map(
+    bonsAvecPdf
+      .map((b) => [b.id, urlParChemin.get(b.pdfPath) ?? null])
+      .filter(([, url]) => url)
+  );
+}
+
 export async function supprimerPdf(bonId) {
   const { data: bonRow } = await supabase.from('bons').select('pdf_path').eq('id', bonId).maybeSingle();
   if (bonRow?.pdf_path) {

@@ -6,7 +6,7 @@ import { useAuth } from '../auth/AuthContext.jsx';
 // Carte affichée sur l'écran d'accueil. Toucher la carte ouvre le détail du
 // bon ; le bouton "Dépenser" ouvre directement la saisie rapide (1er appui),
 // sans passer par le détail (2 appuis max jusqu'à l'enregistrement — section 7).
-export default function BonCard({ bon, onDepenser }) {
+export default function BonCard({ bon, pdfUrl, onDepenser }) {
   const navigate = useNavigate();
   const { libelleIdentite } = useAuth();
   const urgent = estSousLeSeuil(bon.dateExpiration);
@@ -47,6 +47,22 @@ export default function BonCard({ bon, onDepenser }) {
           <span className="etiquette-code-barres">Scannez ici en caisse ↓</span>
           <img src={bon.codeBarresUrl} alt="Code-barres ou QR code du bon" className="image-code-barres" />
         </div>
+      )}
+      {pdfUrl && (
+        // Sous le code-barres/QR, pour éviter d'ouvrir la fiche détail
+        // juste pour récupérer le PDF. Reste aussi disponible dans la
+        // fiche détail (inchangé). Vrai lien <a href>, pas un bouton qui
+        // télécharge au clic — voir repository.js, `obtenirUrlsPdf`, pour
+        // pourquoi c'est nécessaire sur iOS/Safari.
+        <a
+          href={pdfUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="lien-pdf-carte"
+          onClick={(e) => e.stopPropagation()}
+        >
+          📄 Voir le PDF du bon
+        </a>
       )}
       <span className={`expiration ${urgent ? 'urgent' : ''}`}>
         {bon.dateExpiration

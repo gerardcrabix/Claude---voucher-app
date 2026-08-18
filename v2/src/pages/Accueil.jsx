@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { listerBonsEnrichis, listerPastillesEnseignes } from '../db/repository.js';
+import { listerBonsEnrichis, listerPastillesEnseignes, obtenirUrlsPdf } from '../db/repository.js';
 import { estSousLeSeuil } from '../utils/dates.js';
 import { ajouterEntree } from '../diagnostic/journal.js';
 import { useAuth } from '../auth/AuthContext.jsx';
@@ -16,6 +16,7 @@ export default function Accueil() {
   const { identite } = useAuth();
   const [bons, setBons] = useState(null);
   const [pastilles, setPastilles] = useState([]);
+  const [urlsPdf, setUrlsPdf] = useState(new Map());
   const [enseigneFiltre, setEnseigneFiltre] = useState(null);
   const [bonADepenser, setBonADepenser] = useState(null);
   const [erreurChargement, setErreurChargement] = useState(null);
@@ -29,6 +30,11 @@ export default function Accueil() {
       ]);
       setBons(tousBons);
       setPastilles(toutesPastilles);
+      // Un seul appel groupé pour tous les liens PDF de l'écran (voir
+      // repository.js, `obtenirUrlsPdf`) : chaque carte peut ainsi proposer
+      // "Voir le PDF" comme un vrai lien déjà prêt, sans requête au clic.
+      const avecPdf = tousBons.filter((b) => b.pdfPath).map((b) => ({ id: b.id, pdfPath: b.pdfPath }));
+      setUrlsPdf(await obtenirUrlsPdf(avecPdf));
     } catch (e) {
       // Sans ce filet, une erreur ici laisse l'écran bloqué sur "Chargement…"
       // indéfiniment, sans aucun indice pour comprendre pourquoi.
@@ -102,7 +108,12 @@ export default function Accueil() {
       ) : (
         <div className="liste-bons">
           {actifsAffiches.map((bon) => (
-            <BonCard key={bon.id} bon={bon} onDepenser={setBonADepenser} />
+            <BonCard
+              key={bon.id}
+              bon={bon}
+              pdfUrl={urlsPdf.get(bon.id) ?? null}
+              onDepenser={setBonADepenser}
+            />
           ))}
         </div>
       )}

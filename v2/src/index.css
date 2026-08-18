@@ -407,6 +407,20 @@ p {
   color: var(--couleur-accent-fonce);
 }
 
+.lien-pdf-carte {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--couleur-accent-fonce);
+  text-decoration: none;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--couleur-accent-clair);
+}
+
 .image-code-barres {
   align-self: center;
   max-width: 280px;
