@@ -150,6 +150,10 @@ export default function Expires() {
                 const { date, auteur } = infosPertinentes.get(bon.id) ?? {};
                 const historiqueOuvert = historiqueOuvertId === bon.id;
                 const lignesHistorique = historiqueOuvert ? construireLignesHistorique([bon]) : [];
+                // Même seuil que sur la carte de l'accueil (BonCard) : un code
+                // long (Carrefour...) fait sauter le PIN à la ligne suivante
+                // sans ça.
+                const codeCompact = bon.code && bon.code.length > 14;
                 return (
                   <div key={bon.id} className="carte-bon">
                     <div className="ligne-haut">
@@ -168,10 +172,24 @@ export default function Expires() {
                       </span>
                       <span className="solde">{centimesVersAffichage(bon.montantInitial)}</span>
                     </div>
-                    {bon.code && (
+                    {(bon.code || bon.pin) && (
                       <div className="codes">
-                        <span className="code">{bon.code}</span>
+                        {bon.code && <span className={`code ${codeCompact ? 'compact' : ''}`}>{bon.code}</span>}
+                        {bon.pin && <span className={`pin ${codeCompact ? 'compact' : ''}`}>PIN {bon.pin}</span>}
                       </div>
+                    )}
+                    {bon.enseigne?.lienVerification && (
+                      // Avant de clôturer un bon soldé, vérifier sur le site de
+                      // l'enseigne qu'il est effectivement à 0 (le lien est celui
+                      // enregistré sous l'onglet Enseignes — voir Enseignes.jsx).
+                      <a
+                        href={bon.enseigne.lienVerification}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="texte-discret"
+                      >
+                        Vérifier le solde en ligne ↗
+                      </a>
                     )}
                     {bon.statut === 'expire' && (
                       <span className="pilule-statut jaune">
