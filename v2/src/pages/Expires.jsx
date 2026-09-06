@@ -227,37 +227,48 @@ export default function Expires() {
                         {bon.pin && <span className={`pin ${codeCompact ? 'compact' : ''}`}>PIN {bon.pin}</span>}
                       </div>
                     )}
-                    {bon.code && (
-                      // Pas "copier le lien" (essayé précédemment) : c'est le
-                      // code du bon, long et impossible à retenir de tête,
-                      // qu'il faut recopier une fois sur le site de
-                      // l'enseigne — copier le lien à la place lui aurait
-                      // fait perdre le code déjà en presse-papiers juste
-                      // avant de cliquer dessus.
-                      <button
-                        type="button"
-                        className="bouton-discret"
-                        onClick={() => copierCode(bon.id, bon.code)}
-                      >
-                        {codeCopie === bon.id ? 'Code copié ✓' : 'Copier le code'}
-                      </button>
-                    )}
-                    {bon.enseigne?.lienVerification && (
-                      // Avant de clôturer un bon soldé, vérifier sur le site de
-                      // l'enseigne qu'il est effectivement à 0 (le lien est celui
-                      // enregistré sous l'onglet Enseignes). Plusieurs pistes
-                      // essayées pour éviter que ça ne quitte l'app sur iOS
-                      // (noopener, feuille de partage) sans résultat concluant,
-                      // ou avec un effet de bord pire (gel de l'interface) —
-                      // revenu volontairement au lien simple d'origine.
+                    {bon.code && bon.enseigne?.lienVerification ? (
+                      // Un seul geste plutôt que deux boutons séparés : entre
+                      // "Copier le code" et "Vérifier le solde", la carte
+                      // peut se redessiner (mise à jour reçue d'un autre
+                      // appareil) et faire perdre le fil de l'ordre des deux
+                      // appuis — signalé sur le terrain. Ici, la copie part
+                      // au clic (sans bloquer la navigation, qui suit son
+                      // cours normalement via le href de ce <a>) : le code
+                      // est donc sur le presse-papiers au moment exact où la
+                      // page de l'enseigne s'ouvre, sans jamais dépendre d'un
+                      // deuxième appui fait dans le bon ordre.
                       <a
                         href={bon.enseigne.lienVerification}
                         target="_blank"
                         rel="noreferrer"
                         className="texte-discret"
+                        onClick={() => copierDansPressePapiers(bon.code)}
                       >
-                        Vérifier le solde en ligne ↗
+                        Copier le code et vérifier le solde ↗
                       </a>
+                    ) : (
+                      <>
+                        {bon.code && (
+                          <button
+                            type="button"
+                            className="bouton-discret"
+                            onClick={() => copierCode(bon.id, bon.code)}
+                          >
+                            {codeCopie === bon.id ? 'Code copié ✓' : 'Copier le code'}
+                          </button>
+                        )}
+                        {bon.enseigne?.lienVerification && (
+                          <a
+                            href={bon.enseigne.lienVerification}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="texte-discret"
+                          >
+                            Vérifier le solde en ligne ↗
+                          </a>
+                        )}
+                      </>
                     )}
                     {bon.statut === 'expire' && (
                       <span className="pilule-statut jaune">
