@@ -5,7 +5,6 @@ import { dernierEvenementSolde } from '../db/solde.js';
 import { centimesVersAffichage } from '../utils/money.js';
 import { formatDateAffichage } from '../utils/dates.js';
 import { copierDansPressePapiers } from '../utils/pressePapiers.js';
-import { ouvrirLienExterne } from '../utils/partage.js';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { useSyncBons } from '../db/realtime.js';
 import ModaleCorrigerSolde from '../components/ModaleCorrigerSolde.jsx';
@@ -57,15 +56,6 @@ export default function Expires() {
       setCodeCopie(id);
       setTimeout(() => setCodeCopie((prec) => (prec === id ? null : prec)), 1500);
     }
-  }
-
-  // App ajoutée à l'écran d'accueil (mode "standalone", confirmé sur le
-  // terrain) : ni <a target="_blank"> ni window.open() ne peuvent ouvrir un
-  // onglet séparé, ce mode n'en a structurellement pas — voir utils/partage.js
-  // pour pourquoi la feuille de partage native est la seule vraie porte de
-  // sortie qui laisse l'appli intacte en arrière-plan.
-  function ouvrirVerification(bon) {
-    ouvrirLienExterne(bon.enseigne.lienVerification, `Solde ${bon.enseigne?.nom ?? ''}`.trim());
   }
 
   async function charger() {
@@ -255,19 +245,19 @@ export default function Expires() {
                     {bon.enseigne?.lienVerification && (
                       // Avant de clôturer un bon soldé, vérifier sur le site de
                       // l'enseigne qu'il est effectivement à 0 (le lien est celui
-                      // enregistré sous l'onglet Enseignes). Passe par la feuille
-                      // de partage native (voir utils/partage.js et
-                      // ouvrirVerification ci-dessus) — nécessaire pour une app
-                      // ajoutée à l'écran d'accueil sur iOS, où ni
-                      // <a target="_blank"> ni window.open() ne peuvent ouvrir
-                      // un onglet séparé (confirmé sur le terrain).
-                      <button
-                        type="button"
-                        className="texte-discret bouton-lien"
-                        onClick={() => ouvrirVerification(bon)}
+                      // enregistré sous l'onglet Enseignes). Plusieurs pistes
+                      // essayées pour éviter que ça ne quitte l'app sur iOS
+                      // (noopener, feuille de partage) sans résultat concluant,
+                      // ou avec un effet de bord pire (gel de l'interface) —
+                      // revenu volontairement au lien simple d'origine.
+                      <a
+                        href={bon.enseigne.lienVerification}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="texte-discret"
                       >
                         Vérifier le solde en ligne ↗
-                      </button>
+                      </a>
                     )}
                     {bon.statut === 'expire' && (
                       <span className="pilule-statut jaune">

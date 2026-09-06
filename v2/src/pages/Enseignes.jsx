@@ -13,7 +13,6 @@ import { useAuth } from '../auth/AuthContext.jsx';
 import { redimensionnerImageEnDataUrl } from '../utils/image.js';
 import { centimesVersAffichage } from '../utils/money.js';
 import { formatDateAffichage } from '../utils/dates.js';
-import { ouvrirLienExterne } from '../utils/partage.js';
 
 // Gestion des enseignes : création directe (pour pouvoir lui donner un logo
 // avant même le premier bon), renommer, lien de vérification de solde en
@@ -251,18 +250,14 @@ export default function Enseignes() {
                     <span className="enseigne">{e.nom}</span>
                   </div>
                   {e.lienVerification && (
-                    // App ajoutée à l'écran d'accueil (mode standalone,
-                    // confirmé sur le terrain) : ni target="_blank" ni
-                    // window.open() ne peuvent ouvrir un onglet séparé, ce
-                    // mode n'en a structurellement pas. Passe par la feuille
-                    // de partage native — voir utils/partage.js.
-                    <button
-                      type="button"
-                      className="texte-discret bouton-lien"
-                      onClick={() => ouvrirLienExterne(e.lienVerification, `Solde ${e.nom}`)}
-                    >
+                    // Plusieurs pistes essayées pour éviter que ça ne quitte
+                    // l'app sur iOS (noopener, feuille de partage) sans
+                    // résultat concluant, ou avec un effet de bord pire (gel
+                    // de l'interface) — revenu volontairement au lien simple
+                    // d'origine.
+                    <a href={e.lienVerification} target="_blank" rel="noreferrer" className="texte-discret">
                       Vérifier le solde en ligne ↗
-                    </button>
+                    </a>
                   )}
                   <div className="actions">
                     <button className="bouton-grand bouton-secondaire" onClick={() => commencerEdition(e)}>
