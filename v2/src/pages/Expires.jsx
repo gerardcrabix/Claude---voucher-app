@@ -45,15 +45,28 @@ export default function Expires() {
   // pouvoir basculer directement de l'une à l'autre sans repasser par
   // "toutes".
   const [filtreEnseigne, setFiltreEnseigne] = useState(null);
-  // id du bon dont le lien de vérification vient d'être copié (accusé de
-  // réception visuel du bouton, voir Enseignes.jsx pour le pourquoi).
-  const [lienCopie, setLienCopie] = useState(null);
+  // id du bon dont le code vient d'être copié (accusé de réception visuel
+  // du bouton "Copier le code" — pas "copier le lien" : c'est le code, long
+  // et impossible à retenir, qu'il faut recopier sur le site de l'enseigne
+  // une fois dessus, pas l'URL de vérification elle-même).
+  const [codeCopie, setCodeCopie] = useState(null);
 
-  async function copierLien(id, lien) {
-    if (await copierDansPressePapiers(lien)) {
-      setLienCopie(id);
-      setTimeout(() => setLienCopie((prec) => (prec === id ? null : prec)), 1500);
+  async function copierCode(id, code) {
+    if (await copierDansPressePapiers(code)) {
+      setCodeCopie(id);
+      setTimeout(() => setCodeCopie((prec) => (prec === id ? null : prec)), 1500);
     }
+  }
+
+  // Tentative distincte d'un simple <a target="_blank"> (déjà essayé, sans
+  // effet rapporté) : ouvrir depuis un vrai window.open() déclenché au clic
+  // suit un chemin différent dans Safari mobile, avec ses propres règles
+  // anti-popup — pas garanti non plus, mais pas encore tenté. Si l'app est
+  // ajoutée à l'écran d'accueil (mode "standalone"), aucune des deux
+  // approches ne peut fonctionner : ce mode n'a structurellement pas de
+  // notion d'onglet, quoi que fasse la page.
+  function ouvrirVerification(url) {
+    window.open(url, '_blank', 'noopener');
   }
 
   async function charger() {
@@ -225,31 +238,35 @@ export default function Expires() {
                         {bon.pin && <span className={`pin ${codeCompact ? 'compact' : ''}`}>PIN {bon.pin}</span>}
                       </div>
                     )}
+                    {bon.code && (
+                      // Pas "copier le lien" (essayé précédemment) : c'est le
+                      // code du bon, long et impossible à retenir de tête,
+                      // qu'il faut recopier une fois sur le site de
+                      // l'enseigne — copier le lien à la place lui aurait
+                      // fait perdre le code déjà en presse-papiers juste
+                      // avant de cliquer dessus.
+                      <button
+                        type="button"
+                        className="bouton-discret"
+                        onClick={() => copierCode(bon.id, bon.code)}
+                      >
+                        {codeCopie === bon.id ? 'Code copié ✓' : 'Copier le code'}
+                      </button>
+                    )}
                     {bon.enseigne?.lienVerification && (
                       // Avant de clôturer un bon soldé, vérifier sur le site de
                       // l'enseigne qu'il est effectivement à 0 (le lien est celui
-                      // enregistré sous l'onglet Enseignes). "Copier le lien" :
-                      // voir le commentaire dans Enseignes.jsx — un simple
-                      // target="_blank"/rel="noopener" ne garantit pas un
-                      // nouvel onglet sur tous les iOS, copier permet de
-                      // l'ouvrir soi-même sans jamais quitter cette page.
-                      <div className="lien-avec-copie">
-                        <a
-                          href={bon.enseigne.lienVerification}
-                          target="_blank"
-                          rel="noopener"
-                          className="texte-discret"
-                        >
-                          Vérifier le solde en ligne ↗
-                        </a>
-                        <button
-                          type="button"
-                          className="bouton-discret"
-                          onClick={() => copierLien(bon.id, bon.enseigne.lienVerification)}
-                        >
-                          {lienCopie === bon.id ? 'Copié ✓' : 'Copier le lien'}
-                        </button>
-                      </div>
+                      // enregistré sous l'onglet Enseignes). window.open() déclenché
+                      // au clic plutôt qu'un <a target="_blank"> classique (déjà
+                      // essayé, sans effet rapporté) — chemin différent dans
+                      // Safari mobile, pas garanti non plus.
+                      <button
+                        type="button"
+                        className="texte-discret bouton-lien"
+                        onClick={() => ouvrirVerification(bon.enseigne.lienVerification)}
+                      >
+                        Vérifier le solde en ligne ↗
+                      </button>
                     )}
                     {bon.statut === 'expire' && (
                       <span className="pilule-statut jaune">
