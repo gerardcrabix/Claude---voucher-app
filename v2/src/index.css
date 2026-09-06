@@ -495,25 +495,9 @@ p {
   color: var(--couleur-texte-discret);
 }
 
-/* Lien de vérification de solde + son bouton "Copier le lien" de secours
-   (voir Enseignes.jsx et Expires.jsx) : sur la même ligne, avec juste assez
-   d'air pour rester lisible sur un écran de téléphone. */
-.lien-avec-copie {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 10px;
-}
-
-.lien-avec-copie .bouton-discret {
-  min-height: auto;
-  padding: 2px 0;
-  font-size: 0.85rem;
-}
-
-/* Bouton qui se comporte comme un lien (déclenche window.open() au clic,
-   voir Expires.jsx) mais doit visuellement rester un lien, pas un bouton
-   avec bordure/fond. */
+/* Bouton qui se comporte comme un lien (déclenche la feuille de partage au
+   clic, voir Enseignes.jsx/Expires.jsx et utils/partage.js) mais doit
+   visuellement rester un lien, pas un bouton avec bordure/fond. */
 .bouton-lien {
   background: none;
   border: none;

@@ -5,6 +5,7 @@ import { dernierEvenementSolde } from '../db/solde.js';
 import { centimesVersAffichage } from '../utils/money.js';
 import { formatDateAffichage } from '../utils/dates.js';
 import { copierDansPressePapiers } from '../utils/pressePapiers.js';
+import { ouvrirLienExterne } from '../utils/partage.js';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { useSyncBons } from '../db/realtime.js';
 import ModaleCorrigerSolde from '../components/ModaleCorrigerSolde.jsx';
@@ -58,15 +59,13 @@ export default function Expires() {
     }
   }
 
-  // Tentative distincte d'un simple <a target="_blank"> (déjà essayé, sans
-  // effet rapporté) : ouvrir depuis un vrai window.open() déclenché au clic
-  // suit un chemin différent dans Safari mobile, avec ses propres règles
-  // anti-popup — pas garanti non plus, mais pas encore tenté. Si l'app est
-  // ajoutée à l'écran d'accueil (mode "standalone"), aucune des deux
-  // approches ne peut fonctionner : ce mode n'a structurellement pas de
-  // notion d'onglet, quoi que fasse la page.
-  function ouvrirVerification(url) {
-    window.open(url, '_blank', 'noopener');
+  // App ajoutée à l'écran d'accueil (mode "standalone", confirmé sur le
+  // terrain) : ni <a target="_blank"> ni window.open() ne peuvent ouvrir un
+  // onglet séparé, ce mode n'en a structurellement pas — voir utils/partage.js
+  // pour pourquoi la feuille de partage native est la seule vraie porte de
+  // sortie qui laisse l'appli intacte en arrière-plan.
+  function ouvrirVerification(bon) {
+    ouvrirLienExterne(bon.enseigne.lienVerification, `Solde ${bon.enseigne?.nom ?? ''}`.trim());
   }
 
   async function charger() {
@@ -256,14 +255,16 @@ export default function Expires() {
                     {bon.enseigne?.lienVerification && (
                       // Avant de clôturer un bon soldé, vérifier sur le site de
                       // l'enseigne qu'il est effectivement à 0 (le lien est celui
-                      // enregistré sous l'onglet Enseignes). window.open() déclenché
-                      // au clic plutôt qu'un <a target="_blank"> classique (déjà
-                      // essayé, sans effet rapporté) — chemin différent dans
-                      // Safari mobile, pas garanti non plus.
+                      // enregistré sous l'onglet Enseignes). Passe par la feuille
+                      // de partage native (voir utils/partage.js et
+                      // ouvrirVerification ci-dessus) — nécessaire pour une app
+                      // ajoutée à l'écran d'accueil sur iOS, où ni
+                      // <a target="_blank"> ni window.open() ne peuvent ouvrir
+                      // un onglet séparé (confirmé sur le terrain).
                       <button
                         type="button"
                         className="texte-discret bouton-lien"
-                        onClick={() => ouvrirVerification(bon.enseigne.lienVerification)}
+                        onClick={() => ouvrirVerification(bon)}
                       >
                         Vérifier le solde en ligne ↗
                       </button>
