@@ -250,7 +250,15 @@ export default function Enseignes() {
                     <span className="enseigne">{e.nom}</span>
                   </div>
                   {e.lienVerification && (
-                    <a href={e.lienVerification} target="_blank" rel="noreferrer" className="texte-discret">
+                    // `noopener` seul (pas `noreferrer`) : signalé sur le terrain,
+                    // ce lien remplaçait l'appli au lieu d'ouvrir un nouvel
+                    // onglet sur iOS — `rel="noreferrer"` associé à
+                    // `target="_blank"` a un historique de bugs WebKit qui le
+                    // font parfois retomber en navigation dans le même onglet.
+                    // `noopener` protège déjà à lui seul contre le risque de
+                    // sécurité visé (la page ouverte ne peut pas manipuler
+                    // cet onglet via `window.opener`).
+                    <a href={e.lienVerification} target="_blank" rel="noopener" className="texte-discret">
                       Vérifier le solde en ligne ↗
                     </a>
                   )}

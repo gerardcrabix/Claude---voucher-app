@@ -116,6 +116,42 @@ export default function Expires() {
   return (
     <div className="contenu">
       <h1>Expirés</h1>
+      {groupes.length > 0 && (
+        // Même idiome que les pastilles de l'accueil (EnseignePill) : un
+        // coup d'œil sur combien de bons de chaque enseigne sont déjà
+        // clôturés vs. encore à vérifier (soldés mais pas clôturés — le cas
+        // qui pousse justement à retourner checker le solde en ligne avant
+        // de clôturer). Un appui filtre, comme sur l'accueil.
+        <div className="pastilles">
+          {groupes.map((groupe) => {
+            const nbClotures = groupe.bons.filter((b) => b.statut === 'termine').length;
+            const nbAVerifier = groupe.bons.filter((b) => b.statut === 'solde').length;
+            return (
+              <button
+                key={groupe.cle}
+                type="button"
+                className={`pastille ${filtreEnseigne === groupe.cle ? 'active' : ''}`}
+                onClick={() => basculerFiltreEnseigne(groupe.cle)}
+              >
+                <span className="ligne-enseigne-entete">
+                  {groupe.logoUrl && (
+                    <img
+                      className="logo-enseigne"
+                      src={groupe.logoUrl}
+                      alt=""
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                    />
+                  )}
+                  <span className="nom">{groupe.nom}</span>
+                </span>
+                <span className="detail">
+                  {nbClotures} clôturé{nbClotures > 1 ? 's' : ''} · {nbAVerifier} à vérifier
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
       {bons.length === 0 ? (
         <div className="vide">
           <p>Aucun bon expiré, soldé ou clôturé.</p>
@@ -182,10 +218,13 @@ export default function Expires() {
                       // Avant de clôturer un bon soldé, vérifier sur le site de
                       // l'enseigne qu'il est effectivement à 0 (le lien est celui
                       // enregistré sous l'onglet Enseignes — voir Enseignes.jsx).
+                      // `noopener` sans `noreferrer` : voir le commentaire dans
+                      // Enseignes.jsx — évite que ce lien remplace l'appli au
+                      // lieu d'ouvrir un nouvel onglet sur iOS.
                       <a
                         href={bon.enseigne.lienVerification}
                         target="_blank"
-                        rel="noreferrer"
+                        rel="noopener"
                         className="texte-discret"
                       >
                         Vérifier le solde en ligne ↗
