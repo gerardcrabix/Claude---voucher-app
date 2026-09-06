@@ -4,6 +4,7 @@ import { construireLignesHistorique, listerBonsEnrichis, reactiverBon, terminerB
 import { dernierEvenementSolde } from '../db/solde.js';
 import { centimesVersAffichage } from '../utils/money.js';
 import { formatDateAffichage } from '../utils/dates.js';
+import { copierDansPressePapiers } from '../utils/pressePapiers.js';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { useSyncBons } from '../db/realtime.js';
 import ModaleCorrigerSolde from '../components/ModaleCorrigerSolde.jsx';
@@ -44,6 +45,16 @@ export default function Expires() {
   // pouvoir basculer directement de l'une à l'autre sans repasser par
   // "toutes".
   const [filtreEnseigne, setFiltreEnseigne] = useState(null);
+  // id du bon dont le lien de vérification vient d'être copié (accusé de
+  // réception visuel du bouton, voir Enseignes.jsx pour le pourquoi).
+  const [lienCopie, setLienCopie] = useState(null);
+
+  async function copierLien(id, lien) {
+    if (await copierDansPressePapiers(lien)) {
+      setLienCopie(id);
+      setTimeout(() => setLienCopie((prec) => (prec === id ? null : prec)), 1500);
+    }
+  }
 
   async function charger() {
     const tous = await listerBonsEnrichis(identite);
@@ -217,18 +228,28 @@ export default function Expires() {
                     {bon.enseigne?.lienVerification && (
                       // Avant de clôturer un bon soldé, vérifier sur le site de
                       // l'enseigne qu'il est effectivement à 0 (le lien est celui
-                      // enregistré sous l'onglet Enseignes — voir Enseignes.jsx).
-                      // `noopener` sans `noreferrer` : voir le commentaire dans
-                      // Enseignes.jsx — évite que ce lien remplace l'appli au
-                      // lieu d'ouvrir un nouvel onglet sur iOS.
-                      <a
-                        href={bon.enseigne.lienVerification}
-                        target="_blank"
-                        rel="noopener"
-                        className="texte-discret"
-                      >
-                        Vérifier le solde en ligne ↗
-                      </a>
+                      // enregistré sous l'onglet Enseignes). "Copier le lien" :
+                      // voir le commentaire dans Enseignes.jsx — un simple
+                      // target="_blank"/rel="noopener" ne garantit pas un
+                      // nouvel onglet sur tous les iOS, copier permet de
+                      // l'ouvrir soi-même sans jamais quitter cette page.
+                      <div className="lien-avec-copie">
+                        <a
+                          href={bon.enseigne.lienVerification}
+                          target="_blank"
+                          rel="noopener"
+                          className="texte-discret"
+                        >
+                          Vérifier le solde en ligne ↗
+                        </a>
+                        <button
+                          type="button"
+                          className="bouton-discret"
+                          onClick={() => copierLien(bon.id, bon.enseigne.lienVerification)}
+                        >
+                          {lienCopie === bon.id ? 'Copié ✓' : 'Copier le lien'}
+                        </button>
+                      </div>
                     )}
                     {bon.statut === 'expire' && (
                       <span className="pilule-statut jaune">

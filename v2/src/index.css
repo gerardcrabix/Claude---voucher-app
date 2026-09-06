@@ -495,6 +495,22 @@ p {
   color: var(--couleur-texte-discret);
 }
 
+/* Lien de vérification de solde + son bouton "Copier le lien" de secours
+   (voir Enseignes.jsx et Expires.jsx) : sur la même ligne, avec juste assez
+   d'air pour rester lisible sur un écran de téléphone. */
+.lien-avec-copie {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+}
+
+.lien-avec-copie .bouton-discret {
+  min-height: auto;
+  padding: 2px 0;
+  font-size: 0.85rem;
+}
+
 .lien-pdf-carte {
   align-self: center;
   display: inline-flex;

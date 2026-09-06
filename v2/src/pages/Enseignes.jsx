@@ -13,6 +13,7 @@ import { useAuth } from '../auth/AuthContext.jsx';
 import { redimensionnerImageEnDataUrl } from '../utils/image.js';
 import { centimesVersAffichage } from '../utils/money.js';
 import { formatDateAffichage } from '../utils/dates.js';
+import { copierDansPressePapiers } from '../utils/pressePapiers.js';
 
 // Gestion des enseignes : création directe (pour pouvoir lui donner un logo
 // avant même le premier bon), renommer, lien de vérification de solde en
@@ -37,6 +38,16 @@ export default function Enseignes() {
   const [historiqueOuvert, setHistoriqueOuvert] = useState(null); // id de l'enseigne affichée
   const [historiqueLignes, setHistoriqueLignes] = useState([]);
   const [historiqueChargement, setHistoriqueChargement] = useState(false);
+  // id de l'enseigne dont le lien de vérification vient d'être copié — juste
+  // pour l'accusé de réception visuel du bouton ("Copié ✓"), pas persisté.
+  const [lienCopie, setLienCopie] = useState(null);
+
+  async function copierLien(id, lien) {
+    if (await copierDansPressePapiers(lien)) {
+      setLienCopie(id);
+      setTimeout(() => setLienCopie((prec) => (prec === id ? null : prec)), 1500);
+    }
+  }
 
   async function charger() {
     setEnseignes(await listerEnseignes());
@@ -250,17 +261,24 @@ export default function Enseignes() {
                     <span className="enseigne">{e.nom}</span>
                   </div>
                   {e.lienVerification && (
-                    // `noopener` seul (pas `noreferrer`) : signalé sur le terrain,
-                    // ce lien remplaçait l'appli au lieu d'ouvrir un nouvel
-                    // onglet sur iOS — `rel="noreferrer"` associé à
-                    // `target="_blank"` a un historique de bugs WebKit qui le
-                    // font parfois retomber en navigation dans le même onglet.
-                    // `noopener` protège déjà à lui seul contre le risque de
-                    // sécurité visé (la page ouverte ne peut pas manipuler
-                    // cet onglet via `window.opener`).
-                    <a href={e.lienVerification} target="_blank" rel="noopener" className="texte-discret">
-                      Vérifier le solde en ligne ↗
-                    </a>
+                    // Le passage à `rel="noopener"` seul ne suffit pas sur tous
+                    // les appareils : sur iOS, ce lien peut remplacer l'appli
+                    // au lieu d'ouvrir un nouvel onglet, sans que la page ait
+                    // vraiment de moyen de le forcer. "Copier le lien" est la
+                    // solution qui marche à coup sûr : on l'ouvre soi-même
+                    // dans un nouvel onglet, sans jamais quitter cette page.
+                    <div className="lien-avec-copie">
+                      <a href={e.lienVerification} target="_blank" rel="noopener" className="texte-discret">
+                        Vérifier le solde en ligne ↗
+                      </a>
+                      <button
+                        type="button"
+                        className="bouton-discret"
+                        onClick={() => copierLien(e.id, e.lienVerification)}
+                      >
+                        {lienCopie === e.id ? 'Copié ✓' : 'Copier le lien'}
+                      </button>
+                    </div>
                   )}
                   <div className="actions">
                     <button className="bouton-grand bouton-secondaire" onClick={() => commencerEdition(e)}>
