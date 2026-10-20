@@ -101,6 +101,14 @@ Chaque table a RLS activé. Résumé des politiques telles qu'elles existent auj
 
 **Un bug réel a été trouvé et corrigé pendant la construction**, avant toute mise en production : la première version de la policy `bons` incluait `OR created_by = auth.uid()` dans la règle de **lecture**, ce qui permettait à l'auteur d'un bon de continuer à le voir même après l'avoir explicitement marqué « réservé à l'autre ». Un test fonctionnel local (deux comptes simulés sur un Postgres jetable, avant tout déploiement réel) l'a détecté ; la policy a été scindée en `bons_select`/`bons_insert`/`bons_update`/`bons_delete` distinctes pour que seul l'`INSERT` autorise l'auteur à agir en son propre nom, sans jamais lui donner un accès de lecture supplémentaire.
 
+**Changement Supabase à partir du 30 octobre 2026 — GRANT explicite requis pour toute nouvelle table.** Jusqu'à cette date, Supabase accordait automatiquement l'accès Data API (`anon`/`authenticated`/`service_role`) à toute table créée dans le schéma `public`. À partir du 30 octobre, ce n'est plus automatique : sans `GRANT` explicite dans la même migration, l'API (supabase-js, PostgREST, GraphQL) renvoie une erreur « permission denied » sur la table. **Les tables existantes de ce projet (`profiles`, `enseignes`, `bons`, `mouvements`, `overrides`, `modifications`) ne sont pas concernées** — elles gardent leurs droits actuels, aucune action n'était nécessaire pour elles. En revanche, **toute future migration qui crée une nouvelle table** (par exemple si le modèle de groupes/comptes enfants ou le journal de connexion évoqués en discussion de design sont construits un jour) doit inclure, dans le même fichier de migration, les trois lignes :
+```sql
+grant select on public.ma_table to anon;
+grant select, insert, update, delete on public.ma_table to authenticated;
+grant select, insert, update, delete on public.ma_table to service_role;
+```
+RLS reste la vraie barrière de sécurité (ces `GRANT` seuls n'autorisent rien sans policy RLS correspondante) — c'est une étape supplémentaire à ne pas oublier, pas un remplacement des policies déjà en place.
+
 ---
 
 ## 5. Authentification
